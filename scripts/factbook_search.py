@@ -74,21 +74,27 @@ def cmd_search(conn, keyword, year=None):
         print()
 
 def find_master_country(cursor, code_or_name):
-    """Find a MasterCountryID by FIPS code, ISO code, or name fragment."""
+    """Find a MasterCountryID by ISO code, FIPS code, or name fragment.
+
+    ISO Alpha-2 is checked first because it is the international standard
+    and what the web application uses for URL slugs.  FIPS 10-4 is only
+    tried as a fallback.  This matters for the 6 collision codes (AU, BG,
+    BF, GM, NI, SG) where one country's FIPS equals another's ISO.
+    """
     upper = code_or_name.upper()
 
-    # Try FIPS code (CanonicalCode)
+    # Try ISO code first (international standard, used by webapp URLs)
     cursor.execute(
-        "SELECT MasterCountryID, CanonicalName FROM MasterCountries WHERE CanonicalCode = ?",
+        "SELECT MasterCountryID, CanonicalName FROM MasterCountries WHERE ISOAlpha2 = ?",
         upper
     )
     row = cursor.fetchone()
     if row:
         return row[0], row[1]
 
-    # Try ISO code
+    # Try FIPS code (CIA's internal code)
     cursor.execute(
-        "SELECT MasterCountryID, CanonicalName FROM MasterCountries WHERE ISOAlpha2 = ?",
+        "SELECT MasterCountryID, CanonicalName FROM MasterCountries WHERE CanonicalCode = ?",
         upper
     )
     row = cursor.fetchone()
