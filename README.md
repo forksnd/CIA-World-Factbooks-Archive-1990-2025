@@ -6,7 +6,7 @@ The CIA World Factbook was discontinued on **February 4, 2026**. This archive pr
 
 **[Search the interactive archive](https://worldfactbookarchive.org/)** | **[Project documentation](https://milkmp.github.io/CIA-World-Factbooks-Archive-1990-2025/)**
 
-> **Data Integrity:** No Factbook content is added or altered. The parsing process structures the CIA's raw text into queryable fields — removing formatting artifacts, sectioning headers, and deduplicating noise lines — but the actual data values are exactly as the CIA published them. The only additions to the source data are reference lookup tables (FIPS-to-ISO code mappings, entity classifications, COCOM regional assignments) that sit alongside the original data, not inside it.
+> **Data Integrity:** No Factbook content is added or altered. The parsing process structures the CIA's raw text into queryable fields — removing formatting artifacts, sectioning headers, and deduplicating noise lines — but the actual data values are exactly as the CIA published them. The only additions to the source data are reference lookup tables (FIPS-to-ISO code mappings, entity classifications, COCOM regional assignments) that sit alongside the original data, not inside it. In FieldValues, a small number of rows are derived by computation from neighboring sub-values (e.g. total life expectancy averaged from male/female in pre-1995 data); these are clearly flagged with `IsComputed = 1`.
 
 
 ## Database Statistics
@@ -18,9 +18,9 @@ The CIA World Factbook was discontinued on **February 4, 2026**. This archive pr
 | **Country-year records** | 9,536 |
 | **Category records** | 83,682 |
 | **Data fields** | 1,071,603 |
-| **Content size** | ~636 MB (with FieldValues + FTS) |
-| **Field name variants** | 1,090 mapped to 414 canonical names |
-| **Structured sub-values** | 1,610,973 parsed from raw text (2,386 sub-fields) |
+| **Content size** | ~638 MB (with FieldValues + FTS) |
+| **Field name variants** | 1,132 mapped to 416 canonical names |
+| **Structured sub-values** | 1,611,094 parsed from raw text (2,379 sub-fields) |
 
 
 ## Data Sources
@@ -83,7 +83,7 @@ data/
   master_countries.sql       # 281 canonical entities
   countries.sql              # 9,536 country-year records
   categories.sql             # 83,682 category records
-  field_name_mappings.sql    # 1,090 field name standardization rules
+  field_name_mappings.sql    # 1,132 field name standardization rules
   fields/
     country_fields_1990.sql.gz  # Split by year (36 gzipped files)
     ...
@@ -140,13 +140,13 @@ The raw CIA World Factbook changed format **at least 10 times** between 1990 and
 | `build_archive.py` | 986 | 2000-2020 | Downloads HTML zips from the Wayback Machine, detects which of 5 HTML layouts each year uses, and parses fields. Handles CDX API fallback when downloads fail, filters template/print pages, and deduplicates entries. |
 | `load_gutenberg_years.py` | 1,043 | 1990-2001 | Parses plain-text Gutenberg editions with 4 distinct format variants (tagged, asterisk, at-sign, colon). Includes fuzzy country name matching to handle aliases like "Burma" and "Ivory Coast." |
 | `reload_json_years.py` | 413 | 2021-2025 | Checks out year-end git commits from the factbook/cache.factbook.json repo and loads structured JSON. Strips embedded HTML from content fields. |
-| `build_field_mappings.py` | 783 | All | Maps 1,090 raw field name variants to 414 canonical names using a 7-rule system: identity, dash normalization, CIA renames, consolidation, country-specific entries, noise detection, and manual review. Uses pipe (`\|`) delimiters in Content for sub-field boundaries across all eras. |
+| `build_field_mappings.py` | 783 | All | Maps 1,132 raw field name variants to 416 canonical names using a 7-rule system: identity, dash normalization, CIA renames, consolidation, country-specific entries, noise detection, and manual review. Uses case-sensitive collation (`COLLATE Latin1_General_CS_AS`) to ensure case variants get separate mapping rows. Pipe (`\|`) delimiters in Content for sub-field boundaries across all eras. |
 | `classify_entities.py` | 283 | All | Auto-classifies 281 entities into 9 types (sovereign, territory, disputed, etc.) based on Dependency Status and Government Type fields, with hardcoded overrides for edge cases. |
 | `repair_1996_truncated.py` | 189 | 1996 | Parses CIA's original `wfb-96.txt.gz` (page-header format with centered country/section names) and replaces truncated Gutenberg entries for 7 countries: Venezuela, Armenia, Greece, Luxembourg, Malta, Monaco, Tuvalu. |
-| `validate_integrity.py` | 296 | All | Read-only validation suite with 9 checks: field count benchmarks, US population/GDP ground truth, year-over-year consistency, source provenance, and NULL detection. |
-| `structured_parsing/parse_field_values.py` | 1,400+ | All | Decomposes 1,071,603 raw text blobs into 1,610,973 typed sub-values using 55 field-specific parsers + generic fallback. Each row includes a `SourceFragment` column showing the exact text slice that produced the value. Extracts land/water area, male/female life expectancy, age brackets, sex ratios, literacy, budget, elevation, dependency ratios, GDP composition, CO2 emissions, water/sanitation, and more. |
+| `validate_integrity.py` | 296 | All | Read-only validation suite with 10 checks: field count benchmarks, US population/GDP ground truth, year-over-year consistency, source provenance, NULL detection, and unmapped field name gap analysis. |
+| `structured_parsing/parse_field_values.py` | 1,400+ | All | Decomposes 1,071,603 raw text blobs into 1,611,094 typed sub-values using 55 field-specific parsers + generic fallback. Each row includes a `SourceFragment` column showing the exact text slice that produced the value, and an `IsComputed` flag distinguishing source-extracted values (0) from parser-derived values (1). Extracts land/water area, male/female life expectancy, age brackets, sex ratios, literacy, budget, elevation, dependency ratios, GDP composition, CO2 emissions, water/sanitation, and more. |
 | `structured_parsing/validate_field_values.py` | 231 | All | Validates FieldValues against the source database: row counts, coverage, numeric extraction rate, spot checks against known ground truth values (US population, Russia area, Japan military). |
-| `structured_parsing/export_field_values_to_sqlite.py` | 269 | All | Exports FieldValues + all reference tables to a self-contained SQLite database (factbook.db, ~636 MB with FTS5 + ISOCountryCodes when using `--webapp`). |
+| `structured_parsing/export_field_values_to_sqlite.py` | 269 | All | Exports FieldValues + all reference tables to a self-contained SQLite database (factbook.db, ~638 MB with FTS5 + ISOCountryCodes when using `--webapp`). Includes post-export integrity check that detects and backfills any unmapped field names. |
 
 ### Why parsing was so difficult
 
@@ -214,9 +214,9 @@ See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) and [docs/ETL_PIPELINE.md](docs/E
 
 ### Structured Field Values Database (NEW)
 
-The raw text in `CountryFields.Content` has been decomposed into **1,610,973 typed sub-values** across **2,386 distinct sub-fields** using 55 dedicated parsers. Each row includes a `SourceFragment` showing the exact text slice that produced the value. Sub-field boundaries in Content use pipe (`|`) delimiters for unambiguous parsing. This enables SQL queries that were previously impossible without per-query regex — for example, ranking countries by land-vs-water ratio, comparing male vs female life expectancy, or charting budget deficit trends.
+The raw text in `CountryFields.Content` has been decomposed into **1,611,094 typed sub-values** across **2,379 distinct sub-fields** using 55 dedicated parsers. Each row includes a `SourceFragment` showing the exact text slice that produced the value, and an `IsComputed` flag distinguishing values extracted directly from source text (`0`) from values derived by computation (`1`, e.g. averaging male/female life expectancy for pre-1995 data). Sub-field boundaries in Content use pipe (`|`) delimiters for unambiguous parsing. This enables SQL queries that were previously impossible without per-query regex — for example, ranking countries by land-vs-water ratio, comparing male vs female life expectancy, or charting budget deficit trends.
 
-**Download:** [factbook.db (~636 MB) from Release v3.2](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/tag/v3.2) — single self-contained database with all tables, FTS5 search index, and ISO country codes.
+**Download:** [factbook.db (~638 MB) from Release v3.3](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/tag/v3.3) — single self-contained database with all tables, FTS5 search index, and ISO country codes.
 
 **Live dashboard:** [worldfactbookarchive.org/analysis/structured-data](https://worldfactbookarchive.org/analysis/structured-data) — interactive charts showing new queries with SQL and source data tabs.
 
@@ -262,7 +262,7 @@ See [etl/stardict/README.md](etl/stardict/README.md) for format details, synonym
 
 ### Alternative: SQLite (No SQL Server Required)
 
-A pre-built SQLite database (`factbook.db`, ~636 MB) is available as a release download for users who don't need SQL Server. The file exceeds GitHub's 100 MB file-size limit, so it is not included in the repository itself.
+A pre-built SQLite database (`factbook.db`, ~638 MB) is available as a release download for users who don't need SQL Server. The file exceeds GitHub's 100 MB file-size limit, so it is not included in the repository itself.
 
 **Download:** [factbook.db from the latest release](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/latest)
 
@@ -276,7 +276,7 @@ Place the downloaded file at `data/factbook.db` in the project root. SQLite requ
 | **Best for** | Power BI, enterprise analytics, large-scale joins | Quick exploration, scripting, lightweight apps |
 | **Schema** | Identical 5-table structure | Identical 5-table structure |
 
-The SQLite database contains the same 6 tables (including FieldValues), same indexes, and same 1,071,603 fields as the SQL Server version, plus an FTS5 full-text search index for fast keyword and boolean search. This is what the [live webapp](https://worldfactbookarchive.org/) runs on.
+The SQLite database contains the same tables (including FieldValues with IsComputed), same indexes, and same 1,071,603 fields as the SQL Server version, plus an FTS5 full-text search index for fast keyword and boolean search. This is what the [live webapp](https://worldfactbookarchive.org/) runs on.
 
 **Note on numeric values:** The `CountryFields` table stores raw text content exactly as published by the CIA. There is no pre-computed `Value` column. The CSV and Excel exports on the webapp parse numeric values at download time using regex extraction. To extract numeric values yourself, join through `FieldNameMappings` and apply a pattern for the field you need:
 
@@ -372,7 +372,7 @@ The web application source code is maintained in a separate private repository.
 
 ## Field Name Standardization
 
-The CIA renamed many fields over the 36-year span. The `FieldNameMappings` table maps 1,090 raw field name variants to 414 canonical names:
+The CIA renamed many fields over the 36-year span. The `FieldNameMappings` table maps 1,132 raw field name variants to 416 canonical names (case-sensitive, so `Natural hazards` and `natural hazards` get separate rows):
 
 | Mapping Type | Count | Description |
 |-------------|-------|-------------|

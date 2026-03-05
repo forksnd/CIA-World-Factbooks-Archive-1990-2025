@@ -151,7 +151,7 @@ def main():
             SELECT TOP 1 cf.FieldID
             FROM CountryFields cf
             JOIN Countries c ON cf.CountryID = c.CountryID
-            JOIN FieldNameMappings fnm ON cf.FieldName = fnm.OriginalName
+            JOIN FieldNameMappings fnm ON cf.FieldName COLLATE Latin1_General_CS_AS = fnm.OriginalName
             WHERE c.Year = ?
               AND c.Name = ?
               AND fnm.CanonicalName = ?
@@ -192,7 +192,7 @@ def main():
     registered_fields = cur_src.execute("""
         SELECT COUNT(DISTINCT cf.FieldID)
         FROM CountryFields cf
-        JOIN FieldNameMappings fnm ON cf.FieldName = fnm.OriginalName
+        JOIN FieldNameMappings fnm ON cf.FieldName COLLATE Latin1_General_CS_AS = fnm.OriginalName
         WHERE fnm.CanonicalName IN (
             'Area', 'Population', 'Life expectancy at birth', 'Age structure',
             'Birth rate', 'Death rate', 'Infant mortality rate', 'Total fertility rate',
@@ -224,7 +224,24 @@ def main():
     print(f"  Fields using generic fallback: {cf_count - registered_fields:,}")
     print(f"  Registered coverage: {registered_fields / cf_count * 100:.1f}%")
 
-    # -- 8. SourceFragment coverage ---
+    # -- 8. IsComputed flag ---
+    print("\n-- IsComputed Flag --")
+    computed_count = cur_tgt.execute(
+        "SELECT COUNT(*) FROM FieldValues WHERE IsComputed = 1"
+    ).fetchone()[0]
+    print(f"  Computed values: {computed_count:,} / {fv_count:,}")
+    check("IsComputed column exists and is populated", True)
+    if computed_count > 0:
+        computed_sample = cur_tgt.execute("""
+            SELECT TOP 5 fv.FieldID, fv.SubField, fv.NumericVal, fv.Units, fv.SourceFragment
+            FROM FieldValues fv
+            WHERE fv.IsComputed = 1
+        """).fetchall()
+        print(f"  Sample computed values:")
+        for fid, sub, val, units, frag in computed_sample:
+            print(f"    FieldID={fid}  {sub}={val} {units}  src={frag!r}")
+
+    # -- 9. SourceFragment coverage ---
     print("\n-- SourceFragment Coverage --")
     frag_count = cur_tgt.execute(
         "SELECT COUNT(*) FROM FieldValues WHERE SourceFragment IS NOT NULL"
@@ -233,7 +250,7 @@ def main():
     print(f"  Rows with SourceFragment: {frag_count:,} / {fv_count:,} ({frag_pct:.1f}%)")
     check("SourceFragment coverage >= 95%", frag_pct >= 95, f"({frag_pct:.1f}%)")
 
-    # -- 9. New parser spot checks ---
+    # -- 10. New parser spot checks ---
     print("\n-- New Parser Spot Checks --")
     new_spot_checks = [
         ("US 2025 Sex ratio at_birth", 2025, 'United States', 'Sex ratio', 'at_birth', 1.05, 0.02),
@@ -261,7 +278,7 @@ def main():
             SELECT TOP 1 cf.FieldID
             FROM CountryFields cf
             JOIN Countries c ON cf.CountryID = c.CountryID
-            JOIN FieldNameMappings fnm ON cf.FieldName = fnm.OriginalName
+            JOIN FieldNameMappings fnm ON cf.FieldName COLLATE Latin1_General_CS_AS = fnm.OriginalName
             WHERE c.Year = ? AND c.Name = ? AND fnm.CanonicalName = ? AND fnm.IsNoise = 0
         """, year, country_pat, canon_field).fetchone()
         if not row:

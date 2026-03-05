@@ -274,6 +274,86 @@ for yr, empty, total in cursor.fetchall():
         print(f"  {yr}: {empty:,} empty of {total:,} ({pct:.1f}%){flag}")
 
 # ============================================================
+# 10. FIELD NAME MAPPING COMPLETENESS
+# ============================================================
+print(f"\n{SEP}")
+print("  10. FIELD NAME MAPPING COMPLETENESS")
+print(SEP)
+
+# Check for non-NULL FieldNames missing from FieldNameMappings
+# Note: SQLite's = is case-sensitive.  SQL Server's is not.  Case variants
+# that were collapsed during build_field_mappings.py will appear as gaps here.
+cursor.execute("""
+    SELECT COUNT(DISTINCT cf.FieldName) AS Total,
+           COUNT(DISTINCT CASE WHEN fm.MappingID IS NOT NULL THEN cf.FieldName END) AS Mapped
+    FROM CountryFields cf
+    LEFT JOIN FieldNameMappings fm
+        ON cf.FieldName COLLATE Latin1_General_CS_AS = fm.OriginalName
+    WHERE cf.FieldName IS NOT NULL
+""")
+total_fn, mapped_fn = cursor.fetchone()
+fn_status = "PASS" if total_fn == mapped_fn else "FAIL"
+print(f"  Non-NULL field name coverage: {mapped_fn}/{total_fn}  [{fn_status}]")
+
+mapping_issues = False
+if total_fn != mapped_fn:
+    cursor.execute("""
+        SELECT cf.FieldName, COUNT(*) AS UseCount
+        FROM CountryFields cf
+        LEFT JOIN FieldNameMappings fm
+            ON cf.FieldName COLLATE Latin1_General_CS_AS = fm.OriginalName
+        WHERE fm.MappingID IS NULL AND cf.FieldName IS NOT NULL
+        GROUP BY cf.FieldName
+        ORDER BY COUNT(*) DESC
+    """)
+    unmapped = cursor.fetchall()
+    # Distinguish case variants from truly missing
+    case_variants = 0
+    truly_missing = 0
+    for name, cnt in unmapped:
+        cursor.execute(
+            "SELECT 1 FROM FieldNameMappings WHERE LOWER(OriginalName) = LOWER(?) LIMIT 1",
+            (name,))
+        if cursor.fetchone():
+            case_variants += 1
+        else:
+            truly_missing += 1
+
+    if case_variants > 0:
+        print(f"  Case variants (SQL Server vs SQLite collation): {case_variants}")
+    if truly_missing > 0:
+        print(f"  Truly unmapped field names: {truly_missing}")
+        mapping_issues = True
+    for name, cnt in unmapped[:10]:
+        print(f"    UNMAPPED: {name[:60]:<60} (n={cnt})")
+
+# Check for NULL/empty FieldNames
+cursor.execute("""
+    SELECT COUNT(*) FROM CountryFields
+    WHERE FieldName IS NULL OR TRIM(FieldName) = ''
+""")
+null_fn = cursor.fetchone()[0]
+if null_fn > 0:
+    print(f"  NULL/empty FieldName rows: {null_fn:,} (unmappable, expected)")
+else:
+    print(f"  NULL/empty FieldName rows: 0  [CLEAN]")
+
+# Full LEFT JOIN gap (exact query from community report)
+cursor.execute("""
+    SELECT COUNT(*)
+    FROM CountryFields c
+    LEFT JOIN FieldNameMappings f
+        ON c.FieldName COLLATE Latin1_General_CS_AS = f.OriginalName
+    WHERE f.MappingID IS NULL
+""")
+gap_total = cursor.fetchone()[0]
+non_null_gap = gap_total - null_fn
+if non_null_gap > 0:
+    print(f"  LEFT JOIN gap (non-NULL unmapped): {non_null_gap}  [{'FAIL' if mapping_issues else 'WARN — case variants only'}]")
+else:
+    print(f"  LEFT JOIN gap: {gap_total} total ({null_fn} NULL/empty only)  [PASS]")
+
+# ============================================================
 # SUMMARY
 # ============================================================
 print(f"\n{SEP}")
@@ -285,6 +365,10 @@ if pop_matches < pop_total:
     issues.append(f"Population benchmark: {pop_matches}/{pop_total} years matched")
 if anomalies:
     issues.append(f"Field count anomalies: {', '.join(f'{yr}({p:+.0f}%)' for yr, p in anomalies)}")
+if mapping_issues:
+    issues.append(f"FieldNameMappings: truly unmapped field names found")
+if non_null_gap > 0 and not mapping_issues:
+    issues.append(f"FieldNameMappings: {non_null_gap} case-variant gaps (backfill during export)")
 
 if not issues:
     print("  HIGH CONFIDENCE - all benchmarks pass")

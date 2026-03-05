@@ -483,15 +483,23 @@ def is_gov_body(name, use_count, first_year, last_year):
 # ============================================================
 def build_mappings(cursor):
     """Build the complete mapping for all distinct field names."""
-    # Step 1: Get all distinct field names with metadata
+    # Step 1: Get all distinct field names with metadata.
+    # Uses COLLATE Latin1_General_CS_AS for case-sensitive grouping —
+    # SQL Server's default collation is case-insensitive, so 'note' and
+    # 'Note' would collapse into one group.  SQLite's = operator is
+    # case-sensitive, so each variant needs its own FieldNameMappings row.
+    # LEFT JOIN catches orphan CountryFields (no matching Country).
+    # Filters out NULL/empty FieldNames (unmappable parser artifacts).
     cursor.execute("""
-        SELECT cf.FieldName,
+        SELECT cf.FieldName COLLATE Latin1_General_CS_AS AS FieldName,
                MIN(c.Year) AS FirstYear,
                MAX(c.Year) AS LastYear,
                COUNT(*)    AS UseCount
         FROM CountryFields cf
-        JOIN Countries c ON cf.CountryID = c.CountryID
-        GROUP BY cf.FieldName
+        LEFT JOIN Countries c ON cf.CountryID = c.CountryID
+        WHERE cf.FieldName IS NOT NULL
+          AND LTRIM(RTRIM(cf.FieldName)) <> ''
+        GROUP BY cf.FieldName COLLATE Latin1_General_CS_AS
     """)
     all_fields = cursor.fetchall()
 
@@ -649,7 +657,7 @@ def apply_to_db(cursor, conn, mappings):
     cursor.execute("""
         CREATE TABLE FieldNameMappings (
             MappingID       INT IDENTITY(1,1) PRIMARY KEY,
-            OriginalName    NVARCHAR(200)   NOT NULL,
+            OriginalName    NVARCHAR(200) COLLATE Latin1_General_CS_AS NOT NULL,
             CanonicalName   NVARCHAR(200)   NOT NULL,
             MappingType     NVARCHAR(30)    NOT NULL,
             ConsolidatedTo  NVARCHAR(200)   NULL,
@@ -688,16 +696,52 @@ def verify(cursor):
     """Run verification checks after applying."""
     print("\n--- Verification ---")
 
-    # Check 1: Every FieldName has a mapping
+    # Check 1: Every non-NULL FieldName has a mapping (case-sensitive)
+    # Uses COLLATE to match SQLite's case-sensitive behavior.
     cursor.execute("""
-        SELECT COUNT(DISTINCT cf.FieldName) AS Total,
-               COUNT(DISTINCT CASE WHEN fm.MappingID IS NOT NULL THEN cf.FieldName END) AS Mapped
+        SELECT COUNT(DISTINCT cf.FieldName COLLATE Latin1_General_CS_AS) AS Total,
+               COUNT(DISTINCT CASE WHEN fm.MappingID IS NOT NULL
+                     THEN cf.FieldName COLLATE Latin1_General_CS_AS END) AS Mapped
         FROM CountryFields cf
-        LEFT JOIN FieldNameMappings fm ON cf.FieldName = fm.OriginalName
+        LEFT JOIN FieldNameMappings fm
+            ON cf.FieldName = fm.OriginalName COLLATE Latin1_General_CS_AS
+        WHERE cf.FieldName IS NOT NULL
+          AND LTRIM(RTRIM(cf.FieldName)) <> ''
     """)
     total, mapped = cursor.fetchone()
     status = "PASS" if total == mapped else "FAIL"
-    print(f"  Coverage: {mapped}/{total} field names mapped  [{status}]")
+    print(f"  Coverage: {mapped}/{total} non-NULL field names mapped (case-sensitive)  [{status}]")
+
+    if total != mapped:
+        cursor.execute("""
+            SELECT cf.FieldName COLLATE Latin1_General_CS_AS AS FieldName,
+                   COUNT(*) AS UseCount
+            FROM CountryFields cf
+            LEFT JOIN FieldNameMappings fm
+                ON cf.FieldName = fm.OriginalName COLLATE Latin1_General_CS_AS
+            WHERE fm.MappingID IS NULL
+              AND cf.FieldName IS NOT NULL
+              AND LTRIM(RTRIM(cf.FieldName)) <> ''
+            GROUP BY cf.FieldName COLLATE Latin1_General_CS_AS
+            ORDER BY COUNT(*) DESC
+        """)
+        unmapped = cursor.fetchall()
+        print(f"  UNMAPPED FIELD NAMES ({len(unmapped)}):")
+        for name, cnt in unmapped[:20]:
+            print(f"    {name[:60]:<60}  (n={cnt})")
+        if len(unmapped) > 20:
+            print(f"    ... and {len(unmapped) - 20} more")
+
+    # Check 1b: NULL/empty FieldName audit
+    cursor.execute("""
+        SELECT COUNT(*) FROM CountryFields
+        WHERE FieldName IS NULL OR LTRIM(RTRIM(FieldName)) = ''
+    """)
+    null_count = cursor.fetchone()[0]
+    if null_count > 0:
+        print(f"  WARNING: {null_count:,} CountryFields rows have NULL/empty FieldName (unmappable)")
+    else:
+        print(f"  NULL/empty FieldNames: 0  [PASS]")
 
     # Check 2: No duplicates
     cursor.execute("""
@@ -720,7 +764,8 @@ def verify(cursor):
         SELECT COUNT(DISTINCT c.Year) AS YearCount
         FROM CountryFields cf
         JOIN Countries c ON cf.CountryID = c.CountryID
-        JOIN FieldNameMappings fm ON cf.FieldName = fm.OriginalName
+        JOIN FieldNameMappings fm
+            ON cf.FieldName COLLATE Latin1_General_CS_AS = fm.OriginalName
         WHERE c.Name LIKE '%United States%'
           AND c.Name NOT LIKE '%Minor%'
           AND c.Name NOT LIKE '%Virgin%'

@@ -466,6 +466,16 @@ GROUP BY c.Year ORDER BY c.Year
 ```
 Flags years where >5% of fields have empty content, indicating a parser failing to extract field values.
 
+#### Check 10: FieldNameMappings Completeness
+Runs the exact LEFT JOIN query from community reports to detect CountryFields rows without a corresponding FieldNameMappings entry:
+```sql
+SELECT COUNT(*)
+FROM CountryFields c
+LEFT JOIN FieldNameMappings f ON c.FieldName = f.OriginalName
+WHERE f.MappingID IS NULL;
+```
+Reports three metrics: (1) non-NULL field name coverage, (2) case-variant gaps (SQL Server vs SQLite collation), (3) truly unmapped field names. Case variants are expected when running against SQLite and are auto-backfilled during export. Any truly unmapped field names indicate a regression in `build_field_mappings.py`.
+
 ### Additional Verification Queries
 
 Beyond the automated script, the following SQL queries were used during development to verify data quality:
@@ -540,6 +550,40 @@ Germany's GDP data for 1994-1996 was stored under the field name "Germany" (a se
 
 **Fix**: Inserted 3 new CountryFields records with `FieldName='National product'` for Germany 1994-1996, using the GDP values from the self-named "Germany" fields.
 
+### v3.3 Data Consistency Fixes
+
+Two data inconsistencies reported by community review ([Issue #15](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/issues/15)):
+
+#### FieldNameMappings Coverage Gap
+
+**Problem**: A LEFT JOIN from `CountryFields` to `FieldNameMappings` revealed 3,311 rows with no matching mapping:
+```sql
+SELECT * FROM CountryFields c
+LEFT JOIN FieldNameMappings f ON c.FieldName = f.OriginalName
+WHERE f.MappingID IS NULL;
+```
+
+**Root cause**: SQL Server's default collation (`SQL_Latin1_General_CP1_CI_AS`) is **case-insensitive**, so `build_field_mappings.py` collapsed case variants like `Natural hazards` and `natural hazards` into a single mapping row. SQLite's `=` operator is **case-sensitive**, so the JOIN failed for 41 case variants (e.g., `telephone` vs `Telephone`, `head of government` vs `Head of Government`). One additional field name (`Text`, 36 rows) was a parser artifact with no mapping at all.
+
+**Fix**: Three-level defense:
+1. `build_field_mappings.py` now uses `COLLATE Latin1_General_CS_AS` for case-sensitive grouping, generating a separate mapping row for each case variant
+2. Both SQLite export scripts (`export_to_sqlite.py` and `export_field_values_to_sqlite.py`) run an integrity check after copying data. Unmapped field names are detected, matched case-insensitively to existing mappings when possible, and auto-backfilled with correct classification
+3. `validate_integrity.py` includes a dedicated Check 10 that distinguishes case-variant gaps from truly unmapped field names
+
+#### Computed Values in FieldValues Without Provenance
+
+**Problem**: The life expectancy parser for legacy 1990s data (format: "76 years male, 82 years female") computed a `total_population` value by averaging male and female values -- `round((male_v + female_v) / 2, 1)`. This synthesized value does not exist in the original source text.
+
+**Fix**: Added an `IsComputed` column (`INTEGER NOT NULL DEFAULT 0`) to the `FieldValues` table. When `IsComputed = 1`, the value was derived by the parser rather than extracted directly from the source text. The computed life expectancy averages are flagged with `IsComputed = 1`. Downstream consumers should filter or flag these in analysis:
+```sql
+-- Exclude computed values
+SELECT * FROM FieldValues WHERE IsComputed = 0;
+
+-- Or include but flag them
+SELECT *, CASE WHEN IsComputed = 1 THEN 'computed' ELSE 'original' END AS Provenance
+FROM FieldValues;
+```
+
 ---
 
 ## 9. Known Limitations
@@ -549,6 +593,7 @@ Germany's GDP data for 1994-1996 was stored under the field name "Germany" (a se
 - **1994 has inflated field counts** (28,633 vs ~19,000 for neighboring years) because the HTML structure that year caused sub-field labels to be parsed as standalone fields (these are flagged as noise)
 - **2001 uses text source** instead of HTML, which has slightly different field granularity
 - **Content is text-only** — images, maps, and flags from the original Factbook are not included
+- **Case-sensitive field name matching in SQLite** — SQL Server uses case-insensitive collation, so `build_field_mappings.py` may produce one mapping row for case variants (e.g. `Natural hazards` and `natural hazards`). The SQLite export scripts auto-backfill case variants, but if querying raw SQL Server exports, use `COLLATE NOCASE` in JOINs.
 
 ### Parser Limitations
 - **"Full Content" fallback**: If a parser can't identify structured sections, it captures the entire page text as a single field. This happens rarely but means some country-years may have one large text blob instead of structured categories/fields
@@ -558,6 +603,10 @@ Germany's GDP data for 1994-1996 was stored under the field name "Germany" (a se
 - **Some 1990s field names are ambiguous** — e.g., "Branches" could refer to military branches or government branches. Context-dependent mappings default to the most common usage
 - **Consolidation is logical only** — sub-field data is not actually merged in the database, just tagged with a `ConsolidatedTo` parent
 - **281 noise entries may include some legitimate fields** — the noise heuristics are conservative but imperfect. Review with `SELECT * FROM FieldNameMappings WHERE IsNoise = 1 ORDER BY UseCount DESC`
+
+### FieldValues Limitations
+- **Computed values exist** — A small number of FieldValues rows have `IsComputed = 1`, meaning the parser derived them rather than extracting them from source text. Currently this only affects legacy life expectancy `total_population` values (averaged from male+female). Always check `IsComputed` when data provenance matters.
+- **Generic parser fallback** — Fields without a dedicated parser use the generic `key: value` splitter, which may miss some sub-values or misclassify labels
 
 ### Entity Resolution
 - **Some historical entities have no MasterCountryID** — dissolved states or very old entries may not link to the master table (NULL foreign key)

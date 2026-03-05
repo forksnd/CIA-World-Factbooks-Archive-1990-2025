@@ -95,7 +95,8 @@ CREATE TABLE FieldValues (
     TextVal     TEXT,
     DateEst     TEXT,
     Rank        INTEGER,
-    SourceFragment TEXT
+    SourceFragment TEXT,
+    IsComputed  INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -153,6 +154,76 @@ REF_TABLES = [
 ]
 
 BATCH_SIZE = 50_000
+
+
+def backfill_missing_mappings(lite_conn):
+    """Find CountryFields.FieldName values missing from FieldNameMappings and add them.
+
+    The main cause is case sensitivity: SQL Server's default collation is
+    case-insensitive, so build_field_mappings.py may produce one row for
+    'Natural hazards' while CountryFields also contains 'natural hazards'.
+    SQLite's = operator is case-sensitive, so the JOIN misses case variants.
+
+    For each unmapped name, we first look for a case-insensitive match and
+    copy its classification.  Truly missing names get MappingType='unmapped'.
+    """
+    unmapped = lite_conn.execute("""
+        SELECT DISTINCT cf.FieldName
+        FROM CountryFields cf
+        LEFT JOIN FieldNameMappings fm ON cf.FieldName = fm.OriginalName
+        WHERE fm.MappingID IS NULL
+          AND cf.FieldName IS NOT NULL AND TRIM(cf.FieldName) <> ''
+    """).fetchall()
+
+    if not unmapped:
+        print("  All field names are mapped. OK")
+        return
+
+    print(f"  WARNING: {len(unmapped)} field name(s) missing from FieldNameMappings:")
+    next_id = lite_conn.execute(
+        "SELECT COALESCE(MAX(MappingID), 0) + 1 FROM FieldNameMappings"
+    ).fetchone()[0]
+
+    backfilled = 0
+    for (field_name,) in unmapped:
+        # Try case-insensitive match first
+        existing = lite_conn.execute("""
+            SELECT CanonicalName, MappingType, ConsolidatedTo, IsNoise
+            FROM FieldNameMappings
+            WHERE LOWER(OriginalName) = LOWER(?)
+            LIMIT 1
+        """, (field_name,)).fetchone()
+
+        meta = lite_conn.execute("""
+            SELECT MIN(c.Year), MAX(c.Year), COUNT(*)
+            FROM CountryFields cf
+            JOIN Countries c ON cf.CountryID = c.CountryID
+            WHERE cf.FieldName = ?
+        """, (field_name,)).fetchone()
+        first_year, last_year, use_count = meta
+
+        if existing:
+            canon, mtype, consol, is_noise = existing
+            note = "Case variant — auto-added during SQLite export"
+        else:
+            canon, mtype, consol, is_noise = field_name, "unmapped", None, 0
+            note = "Auto-added during export — missing from build_field_mappings.py"
+
+        lite_conn.execute(
+            "INSERT INTO FieldNameMappings "
+            "(MappingID, OriginalName, CanonicalName, MappingType, ConsolidatedTo, "
+            " IsNoise, FirstYear, LastYear, UseCount, Notes) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (next_id, field_name, canon, mtype, consol,
+             is_noise, first_year, last_year, use_count, note),
+        )
+        tag = "case-variant" if existing else "NEW"
+        print(f"    + {field_name!r} -> {canon!r} ({mtype}, {tag}, n={use_count})")
+        next_id += 1
+        backfilled += 1
+
+    lite_conn.commit()
+    print(f"  Backfilled {backfilled} mapping(s).")
 
 
 def copy_table(ms_cursor, lite_conn, name, select_sql, insert_sql):
@@ -257,11 +328,16 @@ def main():
     copy_batched(
         mc_tgt, lite,
         "FieldValues",
-        "SELECT ValueID, FieldID, SubField, NumericVal, Units, TextVal, DateEst, Rank, SourceFragment "
+        "SELECT ValueID, FieldID, SubField, NumericVal, Units, TextVal, DateEst, Rank, "
+        "SourceFragment, IsComputed "
         "FROM FieldValues ORDER BY ValueID",
-        "INSERT INTO FieldValues VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO FieldValues VALUES (?,?,?,?,?,?,?,?,?,?)",
         total_hint=fv_count,
     )
+
+    # Integrity check: every CountryFields.FieldName must exist in FieldNameMappings
+    print("\nVerifying FieldNameMappings coverage...")
+    backfill_missing_mappings(lite)
 
     # Create indexes after bulk load
     print("\nCreating indexes...")

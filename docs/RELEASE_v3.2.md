@@ -1,354 +1,265 @@
-# Release v3.2 — Pipe Delimiters, SourceFragment, and 18 New Parsers
+# Release v3.2 — StarDict Dictionaries and Encoding Repair
 
-**Date:** February 28, 2026
-**Triggered by:** [Issue #10](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/issues/10) — feedback from [@jarofromel](https://github.com/jarofromel)
-
----
-
-## What Changed and Why
-
-A contributor identified two problems in our v3.0 parsing pipeline:
-
-1. **Ambiguous delimiters** — Collapsing original newlines to spaces in `CountryFields.Content` made sub-field parsing unreliable. Spaces appear everywhere in text, so there was no reliable way to tell where one sub-field ended and another began.
-
-2. **Missing provenance** — When a FieldValues row said `NumericVal = 1.05, Units = male(s)/female`, there was no way to verify what text it was parsed from, or to detect when a parser silently dropped data.
-
-Both problems were real. We fixed both.
+**Date:** March 1, 2026
 
 ---
 
-## v3.0 vs v3.2 — By the Numbers
+## Summary
 
-| Metric | v3.0 | v3.2 | Change |
-|--------|------|------|--------|
-| Country-year records | 9,500 | 9,536 | +36 |
-| Category records | 83,599 | 83,682 | +83 |
-| Data fields | 1,061,522 | 1,071,603 | +10,081 |
-| Structured sub-values | 1,423,506 | 1,610,973 | +187,467 |
-| Distinct sub-fields | 1,848 | 2,386 | +538 |
-| Dedicated parsers | 34 | 55 | +21 |
-| Database size (SQLite) | ~542 MB | ~636 MB | +94 MB |
-
-Every delta is positive. No data was lost — only gained.
-
-### Single Database
-
-v3.0 shipped two separate SQLite files: `factbook.db` (core tables + FTS5 search) and `factbook_field_values.db` (core tables + FieldValues). This was confusing — people didn't know which to use or whether they needed both.
-
-v3.2 consolidates everything into one file: **`factbook.db`** (636 MB). It contains all 8 tables (core + FieldValues + FTS5 + ISOCountryCodes). The size difference was only 78 MB, not worth the confusion of two files. Download one database, get everything.
+Rebuilt all 72 StarDict offline dictionaries from the v3.1 `factbook.db` database, fixed all remaining encoding corruption (117 U+FFFD characters reduced to 0), reorganized GitHub releases so the database and dictionaries ship separately, and updated the build pipeline to prefer the consolidated `factbook.db`.
 
 ---
 
-## Architecture: How the Pipeline Works
+## What This Release Contains
 
-```
-                          CIA World Factbook Sources
-                          ==========================
+72 StarDict dictionaries (36 years x 2 editions) for KOReader, GoldenDict, and other StarDict-compatible apps.
 
-    1990-2001 (Text)        2002-2020 (HTML)        2021-2025 (JSON)
-    Project Gutenberg       Wayback Machine         factbook-json-cache
-         |                       |                        |
-         v                       v                        v
-  load_gutenberg_years.py   build_archive.py       reload_json_years.py
-  4 format variants         5 HTML generations      git year-end commits
-  ' | '.join(parts)         html_to_pipe_text()     pipe-aware strip_html()
-         |                       |                        |
-         +-------+---------------+------------------------+
-                 |
-                 v
-         SQL Server (CIA_WorldFactbook)
-         ==============================
-         MasterCountries     281 canonical entities
-         Countries           9,536 country-year records
-         CountryCategories   83,682 section headings
-         CountryFields       1,071,603 fields (pipe-delimited Content)
-         FieldNameMappings   1,090 -> 414 canonical names
-                 |
-                 v
-         parse_field_values.py (55 parsers)
-         ==================================
-         Reads CountryFields.Content
-         Dispatches by CanonicalName -> dedicated parser
-         Falls back to generic pipe-split parser
-         Writes FieldValues with SourceFragment
-                 |
-                 v
-         FieldValues          1,610,973 typed sub-values
-         ===========          2,386 distinct sub-fields
-         SubField             e.g. "total_population", "male", "land"
-         NumericVal           e.g. 80.9, 9833517, 3.45
-         Units                e.g. "years", "sq km", "% of GDP"
-         TextVal              e.g. "parliamentary democracy"
-         DateEst              e.g. "2024 est."
-         SourceFragment       e.g. "total population: 80.9 years"
-                 |
-                 v
-         export_to_sqlite.py -> factbook.db (636 MB)
-         + FTS5 full-text index
-         + ISOCountryCodes (250 rows)
-                 |
-                 v
-         worldfactbookarchive.org (FastAPI + Jinja2)
-```
+| Metric | Value |
+|--------|-------|
+| Dictionaries | 72 |
+| Total entries | 19,010 |
+| Compressed size | ~99 MB |
+| Encoding errors | 0 / 338,187,838 bytes |
+| Source database | `factbook.db` (636 MB) |
+| Validation | 13/16 tests pass |
 
 ---
 
-## Change 1: Content Delimiter Migration (Space -> Pipe)
+## Change 1: Encoding Repair — 117 U+FFFD Characters Fixed
 
 ### The Problem
 
-Original CIA data uses newlines between sub-fields:
+37 fields across 2006-2017 contained U+FFFD (Unicode replacement character) where accented Latin characters, currency symbols, and special punctuation should have been. These originated from HTML-to-text conversion during ETL, where Windows-1252 or Latin-1 encoded bytes were misinterpreted as invalid UTF-8.
 
-```
-total population: 80.9 years
-male: 78.7 years
-female: 83.1 years
-```
-
-v3.0 collapsed these to spaces during parsing:
-
-```
-total population: 80.9 years male: 78.7 years female: 83.1 years
-```
-
-This created ambiguity — "years male" could be a value continuation or a sub-field boundary. The generic parser had to use heuristic label detection (`r'(\w[\w\s]*?):\s'`) which failed on edge cases.
+The corruption affected both `CountryFields.Content` (37 fields) and `FieldValues.TextVal`/`SourceFragment` (35 rows) — totaling 117 individual bad characters across 338 million bytes.
 
 ### The Fix
 
-v3.2 uses pipe (`|`) as the sub-field delimiter:
+Created `scripts/repair_encoding_fffd.py` — a targeted repair script with a hand-verified map of all 37 corrupted fields. Each U+FFFD was identified by context and cross-referenced against adjacent clean years in the database and authoritative sources.
+
+### Characters Restored
 
 ```
-total population: 80.9 years | male: 78.7 years | female: 83.1 years
+ Character    Unicode    Context                              Countries Affected
+ ──────────── ────────── ──────────────────────────────────── ────────────────────
+ i (acute)    U+00ED     Rio San Juan, Rio Mamore             Costa Rica, Bolivia,
+                                                              Brazil (2006-2009)
+ a (acute)    U+00E1     Isla Suarez, Guajara-Mirim, Parana   Bolivia, Brazil,
+                                                              Paraguay (2008-2017)
+ e (acute)    U+00E9     Armees, Republique, Democratique,    DRC, Monaco, Thailand,
+                         Revoires, melange, coup d'etat       Comoros (2009-2017)
+ u (acute)    U+00FA     Itaipu Dam                           Brazil (2008)
+ E (acute)    U+00C9     SEHOUETO (Lazare)                    Benin (2008-2015)
+ S (caron)    U+0160     MATSASA, Sakiai, Silale, Silute,     Lesotho, Lithuania
+                         Sirvintos, Svencionys                (2015-2017)
+ s (caron)    U+0161     Anyksciai, Birstono, Joniskis,       Lithuania (2015)
+                         Kaisiadorys, Kupiskis, Rokiskis,
+                         Radviliskis, Telsiai, Vilkaviskis
+ z (caron)    U+017E     Birzai, Mazeikiai, Panevezys         Lithuania (2015)
+ e (dot)      U+0117     Elektrenai, Pagegiai                 Lithuania (2015)
+ pound        U+00A3     375 billion                          UK (2015)
+ degree       U+00B0     82 W meridian                        Colombia (2008)
+ half         U+00BD     5 1/2-year high                      Chile (2006)
+ plus-minus   U+00B1     4.0% +/- 1.0%                       Dominican Rep. (2016)
+ em dash      U+2014     constitution -- due in May 2011 --   Nepal (2010)
+ left quote   U+2018     'second wave', Al 'Asimah            Vietnam, Jordan (2017)
+ right quote  U+2019     EC's external                        EU (2015)
+ left dquote  U+201C     "BOKK GIS GIS"                       Senegal (2015)
+ comma        U+002C     products, edible oil                 Burma (2016)
+ semicolon    U+003B     products; edible oil                 Burma (2017)
 ```
 
-Pipes never appear in CIA field values, so the boundary is always unambiguous. The generic fallback parser now simply splits on `' | '`.
+### Methodology
 
-### Blast Radius
+1. Queried `CountryFields` for all rows where `Content LIKE '%' || X'EFBFBD' || '%'` — found 37 fields.
+2. For each field, extracted exact byte position and +-40 character context around every U+FFFD.
+3. Queried the same country + field name in adjacent years (year-1, year+1, year-2, year+2) where the data was clean. This identified 80% of the correct characters.
+4. For years 2006-2010 where adjacent years also had stripped accents (plain ASCII instead of accented), used domain knowledge: Spanish place names (Rio, Suarez, Parana), French terms (Armees, Republique), Portuguese names (Itaipu, Guajara), Lithuanian municipality names, and standard symbols.
+5. Applied the same fixes to `FieldValues.TextVal` and `FieldValues.SourceFragment` (35 rows).
+6. Ran on both `factbook.db` and `factbook_field_values.db`.
+7. Verified: 0 U+FFFD remaining in either database across all 3 text columns.
 
-Audited every downstream consumer. Impact was minimal:
-
-```
- Component                     Impact    Reason
- ────────────────────────────── ──────── ──────────────────────────────
- Webapp (country, field pages)  None     Displays Content verbatim
- Webapp (analysis dashboards)   None     Parses with regex, not delimiters
- FTS5 search index              None     SQLite tokenizer treats | as boundary
- StarDict dictionaries          None     Shows Content verbatim
- API v2 endpoints               None     Returns Content as-is in JSON
- CSV/Excel exports              None     Exports Content column directly
- FieldValues parsers (55)       None     Use field-specific regex patterns
- Generic fallback parser        Better   Already split on ' | '
-```
-
-2015-2020 data was already pipe-delimited, so the entire stack was proven to work with pipes before we made the change.
-
-### Files Changed
+### Repair Script
 
 ```
- File                       Change
- ────────────────────────── ──────────────────────────────────────────
- etl/build_archive.py       + html_to_pipe_text() helper function
-                              Replaces <br>, </p><p>, </div><div> with |
-                              Applied in parse_classic(), parse_table_format(),
-                              parse_collapsiblepanel_format()
+scripts/repair_encoding_fffd.py
+  --apply    Apply fixes (default: dry run)
 
- etl/load_gutenberg_years.py  Changed 4 x ' '.join() to ' | '.join()
-                              in extract_indented_fields() and
-                              extract_mixed_fields()
-                              (NOT extract_inline_fields — those are
-                              continuation lines, not sub-fields)
-
- etl/reload_json_years.py   Rewrote strip_html() with pipe-aware logic
-                              <br><br> and </p><p> become ' | '
-                              Remaining tags become spaces
+  37 fields, 73 substring replacements
+  Applied to: CountryFields.Content, FieldValues.TextVal, FieldValues.SourceFragment
+  Databases: factbook.db, factbook_field_values.db
 ```
 
 ---
 
-## Change 2: SourceFragment Column
+## Change 2: Build Pipeline — Database Preference Fix
 
 ### The Problem
 
-v3.0 FieldValues had no provenance. You could see `NumericVal = 1.05` but not what text produced it.
+`etl/stardict/build_stardict.py` preferred `factbook_field_values.db` over `factbook.db`. Since v3.1 consolidated everything into `factbook.db` (which the webapp uses), the StarDict dictionaries were being built from the wrong database. `factbook.db` had 2 more fields (1996 Tuvalu data from the repair) that `factbook_field_values.db` was missing.
 
 ### The Fix
 
-Every FieldValues row now includes `SourceFragment` — the exact text slice matched by the parser:
+Updated `build_stardict.py` to prefer `factbook.db` (the webapp database), falling back to `factbook_field_values.db` only if `factbook.db` doesn't exist. Added a runtime check that verifies the `FieldValues` table exists before attempting the structured edition build.
 
-```sql
-SELECT SubField, NumericVal, Units, SourceFragment
-FROM FieldValues fv
-JOIN CountryFields cf ON fv.FieldID = cf.FieldID
-JOIN Countries c ON cf.CountryID = c.CountryID
-WHERE c.Name = 'United States' AND c.Year = 2025
-  AND cf.FieldName = 'Sex ratio';
+```
+ Old preference:  factbook_field_values.db > factbook.db
+ New preference:  factbook.db > factbook_field_values.db
 ```
 
-| SubField | NumericVal | Units | SourceFragment |
-|----------|-----------|-------|----------------|
-| at_birth | 1.05 | male(s)/female | at birth: 1.05 male(s)/female |
-| 0-14_years | 1.06 | male(s)/female | 0-14 years: 1.06 male(s)/female |
-| 15-24_years | 1.19 | male(s)/female | 15-24 years: 1.19 male(s)/female |
-| total_population | 1.0 | male(s)/female | total population: 1 male(s)/female |
+### File Changed
 
-### Parse Confidence Metric
-
-SourceFragment enables automated quality checks:
-
-```sql
--- Flag under-parsed fields (< 50% of Content was captured)
-SELECT cf.FieldID, cf.FieldName,
-       LENGTH(cf.Content) AS content_len,
-       SUM(LENGTH(fv.SourceFragment)) AS parsed_len,
-       ROUND(100.0 * SUM(LENGTH(fv.SourceFragment)) / LENGTH(cf.Content), 1) AS pct
-FROM FieldValues fv
-JOIN CountryFields cf ON fv.FieldID = cf.FieldID
-GROUP BY cf.FieldID
-HAVING pct < 50
-ORDER BY pct;
+```
+ etl/stardict/build_stardict.py
+   - PRIMARY_DB = factbook.db (was FIELD_VALUES_DB = factbook_field_values.db)
+   - FALLBACK_DB = factbook_field_values.db (was GENERAL_DB = factbook.db)
+   - Added FieldValues table existence check for structured editions
 ```
 
 ---
 
-## Change 3: 18 New Dedicated Parsers
+## Change 3: Release Reorganization
 
 ### The Problem
 
-The generic parser splits Content on `' | '` and matches label:value patterns. This fails when:
-- Labels start with digits: `0-14 years: 1.06 male(s)/female`
-- Values have no label: the first entry in a list
-- Sub-fields use non-standard formats: `at birth: 1.05 male(s)/female`
-
-The issue #10 contributor's Sex ratio example showed 7 sub-values being collapsed to 1.
+v3.1 was "StarDict Dictionaries" (72 tars built from old data) and v3.2 was "Pipe Delimiters" (factbook.db). This mixed the data release with the dictionary release, and the StarDict tars on v3.1 were built before the encoding fixes.
 
 ### The Fix
 
-Wrote dedicated parsers for every field where the generic approach fails:
+Swapped the release content:
 
 ```
- Parser                    Fields Covered                Sub-values
- ────────────────────────── ──────────────────────────── ──────────
- parse_sex_ratio            Sex ratio                    7 age brackets
- parse_literacy             Literacy                     3 (total/m/f)
- parse_maritime_claims      Maritime claims               3-4 zones
- parse_natural_gas          Natural gas (x4)             5 per field
- parse_internet_users       Internet users               2 (total + %)
- parse_telephones           Telephones (x2)              2 per field
- parse_gdp_composition      GDP composition by sector    3 sectors
- parse_household_income     Household income shares      2 deciles
- parse_school_life_exp      School life expectancy       3 (total/m/f)
- parse_youth_unemployment   Youth unemployment           3 (total/m/f)
- parse_co2_emissions        CO2 emissions                4 (total + fuels)
- parse_water_withdrawal     Water withdrawal             3-5 sectors
- parse_broadband            Broadband subscriptions      2 (total + %)
- parse_water_sanitation     Drinking water + Sanitation  6 categories
- parse_waste_recycling      Waste and recycling          3 metrics
- parse_forest_revenue       Forest revenue               1 (% of GDP)
+ Before                                    After
+ ─────────────────────────────────────     ─────────────────────────────────────
+ v3.1: StarDict Dictionaries              v3.1: Pipe Delimiters, SourceFragment
+       72 tar.gz (old data)                     factbook.db (636 MB)
+                                                1 asset
+ v3.2: Pipe Delimiters, SourceFragment    v3.2: StarDict Dictionaries
+       factbook.db (636 MB)                     72 tar.gz (new data, 0 encoding errors)
+       72 tar.gz (uploaded mid-session)         72 assets, ~99 MB total
 ```
 
-### Parser Dispatch Flow
+Steps taken:
+1. Deleted all 72 old StarDict tars from v3.1
+2. Uploaded `factbook.db` to v3.1, updated title and release notes
+3. Deleted all 73 assets (factbook.db + 72 tars) from v3.2
+4. Uploaded 72 new StarDict tars to v3.2, updated title and release notes
+5. Renamed `docs/RELEASE_v3.2.md` to `docs/RELEASE_v3.1.md`, updated header
+
+---
+
+## Change 4: StarDict Dictionary Rebuild
+
+Rebuilt all 72 dictionaries from the repaired `factbook.db`:
 
 ```
-                   CountryFields.Content
-                          |
-                          v
-              FieldNameMappings lookup
-              (OriginalName -> CanonicalName)
-                          |
-                          v
-                 PARSER_REGISTRY[CanonicalName]
-                    /          \
-                found?        not found?
-                 /                \
-                v                  v
-         Dedicated Parser    Generic Fallback
-         (field-specific     (split on ' | ',
-          regex patterns)     match label:value)
-                \                /
-                 v              v
-              FieldValues rows
-              (SubField, NumericVal, Units,
-               TextVal, DateEst, SourceFragment)
+ Building 72 StarDict dictionaries...
+   Database:      factbook.db (636 MB)
+   Years:         1990-2025 (36 years)
+   Editions:      general, structured
+   Compression:   dictzip
+
+ Built 72 dictionaries (19,010 total entries) in 33.1s
+
+ Validation:
+   Dictionaries: 72/72
+   Total size:   98.4 MB
+   All files present.
 ```
 
 ---
 
-## Change 4: 1996 Data Repair
+## Validation Results
 
-During the full database rebuild, we discovered that the Project Gutenberg source for 1996 is truncated for 7 countries: Venezuela, Armenia, Greece, Luxembourg, Malta, Monaco, and Tuvalu. The text files end mid-sentence.
+### StarDict Deep Validation (16 tests)
 
-The v3.0 database had silently leaked neighboring country data into the truncated entries (e.g., Vanuatu's Communications and Defense fields appeared under Venezuela).
+```
+ Test                          Result    Notes
+ ───────────────────────────── ──────── ────────────────────────────────────
+ [T1]  File presence           PASS     288/288 files
+ [T2]  No empty entries        PASS     0 empty
+ [T3]  DB count match          FAIL     3/36 years (known: Redirect/Unknown rows)
+ [T4]  Every entry has <h3>    PASS     0 missing
+ [T5]  Gen/Struct lists match  PASS     0/36 mismatches
+ [T6]  No duplicates           PASS     0 duplicates
+ [T7]  Min entry size          PASS     0 under 50 bytes
+ [T8]  ISO synonyms            PASS     15/15 codes
+ [T9]  HTML tag balance        PASS     All balanced
+ [T10] Gen/Struct differs      PASS     All differ
+ [T11] Ground truth            FAIL     48/50 (Yugoslavia/GDR missing)
+ [T12] Structured sub-fields   PASS     20/20
+ [T13] Historical names        FAIL     Yugoslavia/GDR (MasterCountryID = NULL)
+ [T14] Encoding                PASS     0 bad / 338,187,838 bytes (0.000000%)
+ [T15] Name match              PASS     0 errors
+ [T16] Round-trip read          PASS     pyglossary verified
+```
 
-### The Fix
+**Score: 13/16** (3 pre-existing data mapping issues, not regressions)
 
-The CIA's original `wfb-96.txt.gz` file was found on the Wayback Machine:
-`https://web.archive.org/web/19970528151800id_/http://www.odci.gov:80/cia/publications/nsolo/wfb-96.txt.gz`
+### Known Failures (pre-existing)
 
-A repair script (`etl/repair_1996_truncated.py`) parses the CIA's page-header format and replaces the truncated entries with complete data. Venezuela went from 8 fields (truncated) to 89 fields (complete).
+**T3 — DB count mismatch (2006, 2007, 2012):**
+These years contain "Redirect page" (2006: 12, 2007: 7) and "Unknown" (2012: 9) placeholder entries in the `Countries` table. The StarDict builder correctly excludes them because they have no real content. The validation test counts raw DB rows rather than meaningful entries.
+
+**T11/T13 — Yugoslavia and German Democratic Republic (1990-1991):**
+These historical entities have `MasterCountryID = NULL` in the `Countries` table. The StarDict builder joins through `MasterCountries` for ISO/FIPS synonym lookup, so entries without a MasterCountryID are skipped. This is a data mapping issue in the source database, not a build problem.
 
 ---
 
-## Data Flow: From Issue to Deployment
+## Database Integrity Verification
 
 ```
- Issue #10 feedback (jarofromel)
-     |
-     |  "space delimiter is wrong"
-     |  "add source fragment for debugging"
-     |
-     v
- Investigation (Feb 27-28)
-     |
-     |  Audited all downstream consumers
-     |  Confirmed 2015-2020 already used pipes
-     |  Identified 16+ fields where generic parser fails
-     |
-     v
- Implementation (Feb 28)
-     |
-     |  1. Pipe delimiter migration (3 ETL scripts)
-     |  2. SourceFragment column (schema + all 55 parsers)
-     |  3. 18 new dedicated parsers
-     |  4. Full database rebuild (all 36 years)
-     |  5. 1996 data repair from CIA original
-     |
-     v
- Validation
-     |
-     |  v3.0 vs v3.2 comparison: all deltas positive
-     |  Local webapp testing: all pages 200
-     |  Pipe verification across all eras (1995, 2005, 2015, 2025)
-     |
-     v
- Deployment
-     |
-     |  Fly.io deploy with 636 MB database
-     |  GitHub Pages updated
-     |  Issue #10 response updated
-     |
-     v
- Live at worldfactbookarchive.org
+ factbook.db:
+   CountryFields:            1,071,603
+   FieldValues:              1,610,973
+   Distinct SubFields:       2,386
+   U+FFFD in Content:        0
+   U+FFFD in TextVal:        0
+   U+FFFD in SourceFragment: 0
+   Spot: Bolivia 2008 Rio=True, Suarez=True
+   Spot: Lithuania 2015 s-caron=True
+   Spot: UK 2015 pound=True
+
+ factbook_field_values.db:
+   CountryFields:            1,071,601
+   FieldValues:              1,610,973
+   Distinct SubFields:       2,386
+   U+FFFD in Content:        0
+   U+FFFD in TextVal:        0
+   U+FFFD in SourceFragment: 0
 ```
 
 ---
 
 ## Files Changed
 
-| File | Lines Changed | What |
-|------|--------------|------|
-| `etl/build_archive.py` | +35 | `html_to_pipe_text()` helper, applied in 3 parser functions |
-| `etl/load_gutenberg_years.py` | +4/-4 | 4x `' '.join()` -> `' \| '.join()` |
-| `etl/reload_json_years.py` | +15/-5 | Pipe-aware `strip_html()` rewrite |
-| `etl/structured_parsing/parse_field_values.py` | +850 | 18 new parsers + SourceFragment in all parsers |
-| `etl/structured_parsing/export_field_values_to_sqlite.py` | +79 | SourceFragment column support |
-| `etl/structured_parsing/validate_field_values.py` | +68 | Updated validation for new parsers |
-| `etl/structured_parsing/DESIGN.md` | +159 | v3.2 changelog and documentation |
-| `schema/create_field_values.sql` | +1 | SourceFragment column in DDL |
-| `README.md` | +40/-32 | Updated all stats to v3.2 numbers |
-| `docs/index.html` | +12/-12 | Updated GitHub Pages stats and descriptions |
+| File | What |
+|------|------|
+| `etl/stardict/build_stardict.py` | Database preference: factbook.db > factbook_field_values.db |
+| `scripts/repair_encoding_fffd.py` | New: targeted U+FFFD repair for 37 fields across both databases |
+| `docs/RELEASE_v3.1.md` | Renamed from RELEASE_v3.2.md, updated header to v3.1 |
+| `docs/RELEASE_v3.2.md` | New: this document |
+| `data/factbook.db` | 37 CountryFields + 35 FieldValues rows repaired (0 U+FFFD remaining) |
+| `data/factbook_field_values.db` | Same repairs applied |
 
 ---
 
-## Acknowledgments
+## GitHub Release Layout
 
-This release was directly driven by feedback from [@jarofromel](https://github.com/jarofromel) in [Issue #10](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/issues/10). Their suggestion to add source provenance (SourceFragment) and fix the delimiter problem (space -> pipe) led to a full pipeline rebuild that improved every metric in the database.
+```
+ v1.0 — Complete Archive (1990-2025)
+   factbook.db (original)
+
+ v2.0 — Data Quality Repair
+   factbook.db (encoding + dedup fixes)
+
+ v3.0 — Structured Field Parsing
+   factbook.db + factbook_field_values.db
+
+ v3.1 — Pipe Delimiters, SourceFragment, 18 New Parsers
+   factbook.db (636 MB, single consolidated database)
+
+ v3.2 — StarDict Dictionaries          <-- this release
+   72 x tar.gz (19,010 entries, ~99 MB total)
+   Built from v3.1 factbook.db with 0 encoding errors
+```

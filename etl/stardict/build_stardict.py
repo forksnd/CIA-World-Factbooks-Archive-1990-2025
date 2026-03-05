@@ -24,12 +24,11 @@ from collections import OrderedDict
 # ── Paths ───────────────────────────────────────────────────────────
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
-# factbook_field_values.db is the most complete database — it has all 6 tables:
+# factbook.db is the single consolidated database (v3.2+) containing all tables:
 # MasterCountries, Countries, CountryCategories, CountryFields, FieldNameMappings,
-# and FieldValues.  We use it for BOTH editions (General reads CountryFields.Content,
-# Structured reads FieldValues).  Falls back to factbook.db for General-only builds.
-FIELD_VALUES_DB = os.path.join(PROJECT_ROOT, "data", "factbook_field_values.db")
-GENERAL_DB = os.path.join(PROJECT_ROOT, "data", "factbook.db")
+# FieldValues, CountryFieldsFTS, and ISOCountryCodes.
+PRIMARY_DB = os.path.join(PROJECT_ROOT, "data", "factbook.db")
+FALLBACK_DB = os.path.join(PROJECT_ROOT, "data", "factbook_field_values.db")
 DEFAULT_OUTPUT = os.path.join(PROJECT_ROOT, "data", "stardict")
 
 ALL_YEARS = list(range(1990, 2026))
@@ -405,21 +404,29 @@ def main():
     need_general = "general" in editions
     need_structured = "structured" in editions
 
-    # Prefer factbook_field_values.db (has all 6 tables including FieldValues).
-    # Fall back to factbook.db for general-only builds.
-    if os.path.exists(FIELD_VALUES_DB):
-        db_path = FIELD_VALUES_DB
-    elif os.path.exists(GENERAL_DB):
-        if need_structured:
-            print(f"ERROR: Structured edition requires {FIELD_VALUES_DB}")
-            print(f"  (factbook.db does not contain FieldValues)")
-            sys.exit(1)
-        db_path = GENERAL_DB
+    # Prefer factbook.db (consolidated v3.2+ database used by the webapp).
+    # Fall back to factbook_field_values.db if factbook.db is missing.
+    if os.path.exists(PRIMARY_DB):
+        db_path = PRIMARY_DB
+    elif os.path.exists(FALLBACK_DB):
+        db_path = FALLBACK_DB
     else:
         print(f"ERROR: No database found. Expected:")
-        print(f"  {FIELD_VALUES_DB}")
-        print(f"  {GENERAL_DB}")
+        print(f"  {PRIMARY_DB}")
+        print(f"  {FALLBACK_DB}")
         sys.exit(1)
+
+    # Verify FieldValues table exists if structured edition is needed
+    if need_structured:
+        _check = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        tables = [r[0] for r in _check.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()]
+        _check.close()
+        if "FieldValues" not in tables:
+            print(f"ERROR: Structured edition requires FieldValues table")
+            print(f"  (not found in {db_path})")
+            sys.exit(1)
 
     os.makedirs(args.output_dir, exist_ok=True)
 
