@@ -1,7 +1,7 @@
 CIA WORLD FACTBOOK ARCHIVE
 ==========================
 36 years of data (1990-2025) — 281 entities, 1,071,603 fields
-1,610,973 structured sub-values parsed from raw text (2,386 sub-fields)
+1,611,094 structured sub-values parsed from raw text (2,379 sub-fields)
 Live: https://worldfactbookarchive.org
 
 DATABASE SCHEMA:
@@ -9,8 +9,8 @@ DATABASE SCHEMA:
   Countries         -> Year, Code, Name, Source, MasterCountryID (FK)
   CountryCategories -> CountryID, CategoryTitle
   CountryFields     -> CategoryID, CountryID, FieldName, Content
-  FieldNameMappings -> RawFieldName, CanonicalFieldName (maps 1,090 variants to 414 canonical names)
-  FieldValues       -> FieldID, SubField, NumericVal, Units, TextVal, DateEst, SourceFragment
+  FieldNameMappings -> RawFieldName, CanonicalFieldName (maps 1,132 variants to 416 canonical names)
+  FieldValues       -> FieldID, SubField, NumericVal, Units, TextVal, DateEst, SourceFragment, IsComputed
 
   MasterCountries centralizes country identity across all 36 years.
   CanonicalCode = original FIPS 10-4 code (preserved for reference)
@@ -30,7 +30,7 @@ KEY QUERY — Snapshot of all factbook content with country metadata:
 
 DATABASES:
   SQL Server:  CIA_WorldFactbook on localhost (Windows Auth, ODBC Driver 18)
-  SQLite:      data/factbook.db (~636 MB, all tables + FTS5 + ISOCountryCodes)
+  SQLite:      data/factbook.db (~638 MB, all tables + FTS5 + ISOCountryCodes)
 
   factbook.db is a self-contained database used by the webapp and for distribution.
   SQL Server is the canonical source for ETL.
@@ -60,7 +60,7 @@ ETL SCRIPTS (in etl/, run in order):
   Step 2: load_gutenberg_years.py  Parses 1990-2001 text from Project Gutenberg
   Step 3: reload_json_years.py     Loads 2021-2025 JSON from factbook GitHub repo
   Step 4: classify_entities.py     Auto-classifies entities (sovereign/territory/etc.)
-  Step 5: build_field_mappings.py  Maps 1,090 field name variants to 414 canonical names
+  Step 5: build_field_mappings.py  Maps 1,132 field name variants to 416 canonical names
   Step 6: export_to_sqlite.py      Exports SQL Server to SQLite
   Step 7: structured_parsing/parse_field_values.py  Parses text blobs into typed sub-values
   Step 8: structured_parsing/export_field_values_to_sqlite.py  Exports to SQLite

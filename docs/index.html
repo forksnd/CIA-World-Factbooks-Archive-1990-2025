@@ -486,7 +486,7 @@ footer a:hover { text-decoration: underline; color: #8F99A8; }
           <tr><td class="mono">Countries</td><td class="r">9,536</td><td>Per-year country records</td></tr>
           <tr><td class="mono">CountryCategories</td><td class="r">83,682</td><td>Section headings (Geography, Economy, etc.)</td></tr>
           <tr><td class="mono">CountryFields</td><td class="r">1,071,603</td><td>Individual data fields (~238 MB)</td></tr>
-          <tr><td class="mono">FieldNameMappings</td><td class="r">1,090</td><td>Maps 1,132 variants to 416 canonical names</td></tr>
+          <tr><td class="mono">FieldNameMappings</td><td class="r">1,132</td><td>Maps 1,132 variants to 416 canonical names</td></tr>
         </tbody>
       </table>
 
@@ -691,7 +691,7 @@ footer a:hover { text-decoration: underline; color: #8F99A8; }
         <hr class="sec-rule">
       </div>
 
-      <p>The 1,071,603 fields in CountryFields store raw text blobs with pipe (|) delimiters separating sub-fields. The structured parsing pipeline decomposes these into <strong style="color:#C5CBD3;">1,610,973 individually queryable, typed sub-values</strong> across <strong style="color:#C5CBD3;">2,386 distinct sub-fields</strong> using 55 dedicated parsers. Each row includes a <strong style="color:#C5CBD3;">SourceFragment</strong> showing the exact text slice that produced the value. This enables SQL queries that were previously impossible without per-query regex.</p>
+      <p>The 1,071,603 fields in CountryFields store raw text blobs with pipe (|) delimiters separating sub-fields. The structured parsing pipeline decomposes these into <strong style="color:#C5CBD3;">1,611,094 individually queryable, typed sub-values</strong> across <strong style="color:#C5CBD3;">2,379 distinct sub-fields</strong> using 55 dedicated parsers. Each row includes a <strong style="color:#C5CBD3;">SourceFragment</strong> showing the exact text slice that produced the value. This enables SQL queries that were previously impossible without per-query regex.</p>
 
       <div style="margin: 16px 0 20px; padding: 16px 20px; background: #1C2127; border: 1px solid #2F343C; border-left: 4px solid #51CF66; border-radius: 4px; font-size: 0.85rem; color: #8F99A8; line-height: 1.8;">
         <strong style="color: #C5CBD3;">New queries enabled:</strong> Land vs water area, male vs female life expectancy, age structure brackets (0-14, 15-64, 65+), budget revenues vs expenditures, dependency ratios (youth/elderly), urbanization rate, elevation extremes, land use composition, multi-year GDP/inflation/unemployment breakdowns, and more.<br><br>

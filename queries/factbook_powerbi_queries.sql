@@ -13,7 +13,7 @@
 --   Countries          — Year-specific country entries
 --   CountryCategories  — Category groupings per country-year
 --   CountryFields      — Individual data fields (the raw data)
---   FieldNameMappings  — Maps 1,090 field name variants → canonical names
+--   FieldNameMappings  — Maps 1,132 field name variants → canonical names
 -- ============================================================================
 
 

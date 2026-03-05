@@ -6,19 +6,20 @@ How CIA World Factbook field names changed over 36 years (1990-2025).
 
 The CIA renamed, split, merged, and reformatted field names many times across 36 years. A simple query for "GDP" would miss years where it was called "National product", "GNP", "GDP (purchasing power parity)", or "Real GDP (purchasing power parity)".
 
-The `FieldNameMappings` table solves this by mapping all 1,090 raw field name variants to 414 canonical names.
+The `FieldNameMappings` table solves this by mapping all 1,132 raw field name variants to 416 canonical names.
 
 ## Mapping Statistics
 
 | Mapping Type | Count | Description |
 |-------------|-------|-------------|
-| identity | 184 | Modern field names that haven't changed |
-| rename | 159 | CIA explicitly renamed the field |
+| identity | 185 | Modern field names that haven't changed |
+| rename | 162 | CIA explicitly renamed the field |
 | dash_format | 64 | Formatting differences (dashes, spacing) |
-| consolidation | 48 | Sub-fields merged into a parent aggregate |
-| country_specific | 354 | Regional entries, government body names |
-| noise | 281 | Parser artifacts (flagged IsNoise=1) |
-| **Total** | **1,090** | |
+| consolidation | 49 | Sub-fields merged into a parent aggregate |
+| country_specific | 355 | Regional entries, government body names |
+| manual | 7 | Hand-corrected case-sensitive backfills |
+| noise | 310 | Parser artifacts (flagged IsNoise=1) |
+| **Total** | **1,132** | |
 
 ## Notable Renames
 

@@ -1,7 +1,7 @@
 """
 CIA Factbook Archive - Field Name Mapper
 ========================================
-Maps the 1,090 distinct FieldName variants in CountryFields to canonical
+Maps the 1,132 distinct FieldName variants in CountryFields to canonical
 (modern / standardized) names.  Creates a FieldNameMappings lookup table
 so the original data stays untouched.
 

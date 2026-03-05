@@ -19,7 +19,7 @@ MasterCountries (281 rows)
   |
   |-- self-ref (AdministeringMasterCountryID)
 
-FieldNameMappings (1,090 rows) -- standalone lookup, joins on FieldName
+FieldNameMappings (1,132 rows) -- standalone lookup, joins on FieldName
 ```
 
 ## Tables

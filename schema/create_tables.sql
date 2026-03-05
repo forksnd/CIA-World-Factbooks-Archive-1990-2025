@@ -8,7 +8,7 @@
  *   2. Countries             — Per-year country records (~9,500 rows)
  *   3. CountryCategories     — Category headings per country-year (~83,600 rows)
  *   4. CountryFields         — Individual data fields (~1,071,200 rows)
- *   5. FieldNameMappings     — Field-name standardization (~1,090 rows)
+ *   5. FieldNameMappings     — Field-name standardization (~1,132 rows)
  *
  * Restore order:
  *   1. Run this script to create tables + indexes

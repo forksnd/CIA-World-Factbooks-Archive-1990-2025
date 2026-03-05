@@ -279,7 +279,7 @@ The CIA renamed fields frequently. "GDP" alone has had 6 different field names a
 
 ### Solution: `FieldNameMappings` Table
 
-A separate lookup table (1,090 rows) maps every distinct `FieldName` found in `CountryFields` to a canonical name. The original data is never modified.
+A separate lookup table (1,132 rows) maps every distinct `FieldName` found in `CountryFields` to a canonical name. The original data is never modified.
 
 ### Rule System
 

@@ -1,4 +1,4 @@
--- FieldNameMappings: 1,090 rows
+-- FieldNameMappings: 1,132 rows
 -- Exported from CIA_WorldFactbook archive
 
 SET IDENTITY_INSERT FieldNameMappings ON;

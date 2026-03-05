@@ -158,7 +158,7 @@ The CIA never maintained a stable schema. Every few years the HTML layout change
 
 - **2001:** The Wayback Machine's HTML zip for 2001 was corrupted, so parsing fell back to the Project Gutenberg plain-text edition — the only year where the HTML and text pipelines had to swap.
 
-- **Field name drift:** The CIA renamed fields silently over the decades. "GDP - real growth rate" became "Real GDP growth rate." "Telephones" split into "Telephones - fixed lines" and "Telephones - mobile cellular." Oil sub-fields were consolidated into "Petroleum." The `build_field_mappings.py` script maps all 1,090 variants through 7 rule layers to maintain time-series continuity.
+- **Field name drift:** The CIA renamed fields silently over the decades. "GDP - real growth rate" became "Real GDP growth rate." "Telephones" split into "Telephones - fixed lines" and "Telephones - mobile cellular." Oil sub-fields were consolidated into "Petroleum." The `build_field_mappings.py` script maps all 1,132 variants through 7 rule layers to maintain time-series continuity.
 
 - **Country-specific noise:** 1990s editions embedded government body names (parliaments, assemblies, courts) as top-level fields. Dissolved countries (Serbia and Montenegro, Netherlands Antilles) appear and disappear. Turkish Cyprus, Malaysian states, and Netherlands Antilles islands show up as sub-entries that need special handling.
 
@@ -271,7 +271,7 @@ Place the downloaded file at `data/factbook.db` in the project root. SQLite requ
 | | SQL Server | SQLite |
 |--|-----------|--------|
 | **Setup** | Install SQL Server + ODBC driver, run schema + import scripts | Download one `.db` file |
-| **Size** | ~263 MB across 36 gzipped SQL files | ~636 MB single file |
+| **Size** | ~263 MB across 36 gzipped SQL files | ~638 MB single file |
 | **Query tool** | SSMS, sqlcmd, pyodbc | Python `sqlite3`, DB Browser, any SQLite client |
 | **Best for** | Power BI, enterprise analytics, large-scale joins | Quick exploration, scripting, lightweight apps |
 | **Schema** | Identical 5-table structure | Identical 5-table structure |
@@ -346,7 +346,7 @@ The archive is served as a FastAPI + Jinja2 web application at **[worldfactbooka
   - **Political Stability** — government type choropleth, regime change tracking, and regional peer comparison
   - **Natural Resources & Economy** — resource production maps, commodity scatter plots, and country profiles
   - **Dissolved States** — historical entities no longer in the Factbook with archived indicator data
-  - **Structured Field Data** — interactive dashboard of 1,610,973 parsed sub-values with Chart/SQL/Source tabs showing exactly where each number was extracted from
+  - **Structured Field Data** — interactive dashboard of 1,611,094 parsed sub-values with Chart/SQL/Source tabs showing exactly where each number was extracted from
 - **Intelligence dossiers** following ICD 203 analytic standards
 - **Regional threat briefs** with instability and security indicators
 - **Factbook Quiz** — 4 modes: country identification, capital cities, higher-or-lower, and flag recognition

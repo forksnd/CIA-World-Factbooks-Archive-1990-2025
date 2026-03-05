@@ -530,7 +530,7 @@ Ranked by analytical value and frequency across the archive:
 | **Total records** | 1,061,522 | N/A (weekly snapshots) |
 | **Granularity** | 1 snapshot/year | ~52 snapshots/year |
 | **Source parsing** | Python / BeautifulSoup | Go / goquery |
-| **Field canonicalization** | 1,090 variants -> 416 canonical | None |
+| **Field canonicalization** | 1,132 variants -> 416 canonical | None |
 | **Type conversion** | Planned (this project) | Already implemented |
 | **Output format** | SQLite + webapp | JSON files |
 
@@ -681,8 +681,8 @@ See [release notes](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2
   waste_recycling, forest_revenue — bringing total to 55 registered parsers.
 - **1996 data repair**: Replaced truncated Gutenberg data for 7 countries (Venezuela,
   Armenia, Greece, Luxembourg, Malta, Monaco, Tuvalu) with CIA's original `wfb-96.txt.gz`.
-- **Full database rebuild**: 1,071,603 fields decomposed into 1,610,973 sub-values
-  across 2,386 distinct sub-fields. Country-year records: 9,536. Categories: 83,682.
+- **Full database rebuild**: 1,071,603 fields decomposed into 1,611,094 sub-values
+  across 2,379 distinct sub-fields. Country-year records: 9,536. Categories: 83,682.
 
 ### v3.0 (2026-02-26)
 

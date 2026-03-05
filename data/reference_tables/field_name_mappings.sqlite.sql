@@ -1,5 +1,5 @@
--- FieldNameMappings: 1090 rows
--- Maps 1,090 raw field name variants to 416 canonical names
+-- FieldNameMappings: 1132 rows
+-- Maps 1,132 raw field name variants to 416 canonical names
 -- Covers all CIA World Factbook editions 1990-2025
 
 CREATE TABLE IF NOT EXISTS FieldNameMappings (

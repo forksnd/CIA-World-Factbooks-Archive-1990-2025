@@ -106,7 +106,7 @@ Rather than loading the same JSON snapshot for all years, we use git history to 
 
 ### Field Name Standardization (`build_field_mappings.py`)
 
-After all data is loaded, this script analyzes the 1,090 distinct field names across all years and maps them to 414 canonical names. The mapping uses a **priority-ordered rule system** — the first rule that matches wins.
+After all data is loaded, this script analyzes the 1,132 distinct field names across all years and maps them to 416 canonical names. The mapping uses a **priority-ordered rule system** — the first rule that matches wins.
 
 #### Rule Priority (applied in order)
 
