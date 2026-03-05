@@ -1,6 +1,6 @@
 # Structured Field Parsing — Design Document
 
-> **Status**: Shipped (v3.0 2026-02-26, v3.2 2026-02-28, v3.3 2026-03-04)
+> **Status**: Shipped (v3.0 2026-02-26, v3.2 2026-02-28, v3.3 2026-03-04, v3.4 2026-03-04)
 > **Location**: `etl/structured_parsing/`
 > **Author**: Milan Milkovich
 > **Date**: 2026-02-26
@@ -591,6 +591,13 @@ Once FieldValues is populated:
 
 ## Changelog
 
+### v3.4 (2026-03-04)
+
+Database rebuild with expanded parsing coverage:
+
+- **1,775,588 structured sub-values** across **2,599 distinct sub-fields** (up from 1,611,094 / 2,379 in v3.3).
+- Database size: ~656 MB (up from ~638 MB).
+
 ### v3.3 (2026-03-04)
 
 Two data consistency fixes driven by community review ([Issue #15](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/issues/15)):
@@ -681,8 +688,8 @@ See [release notes](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2
   waste_recycling, forest_revenue — bringing total to 55 registered parsers.
 - **1996 data repair**: Replaced truncated Gutenberg data for 7 countries (Venezuela,
   Armenia, Greece, Luxembourg, Malta, Monaco, Tuvalu) with CIA's original `wfb-96.txt.gz`.
-- **Full database rebuild**: 1,071,603 fields decomposed into 1,611,094 sub-values
-  across 2,379 distinct sub-fields. Country-year records: 9,536. Categories: 83,682.
+- **Full database rebuild**: 1,071,603 fields decomposed into 1,775,588 sub-values
+  across 2,599 distinct sub-fields. Country-year records: 9,536. Categories: 83,682.
 
 ### v3.0 (2026-02-26)
 

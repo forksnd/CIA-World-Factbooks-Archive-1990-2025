@@ -18,9 +18,9 @@ The CIA World Factbook was discontinued on **February 4, 2026**. This archive pr
 | **Country-year records** | 9,536 |
 | **Category records** | 83,682 |
 | **Data fields** | 1,071,603 |
-| **Content size** | ~638 MB (with FieldValues + FTS) |
+| **Content size** | ~656 MB (with FieldValues + FTS) |
 | **Field name variants** | 1,132 mapped to 416 canonical names |
-| **Structured sub-values** | 1,611,094 parsed from raw text (2,379 sub-fields) |
+| **Structured sub-values** | 1,775,588 parsed from raw text (2,599 sub-fields) |
 
 
 ## Data Sources
@@ -144,9 +144,9 @@ The raw CIA World Factbook changed format **at least 10 times** between 1990 and
 | `classify_entities.py` | 283 | All | Auto-classifies 281 entities into 9 types (sovereign, territory, disputed, etc.) based on Dependency Status and Government Type fields, with hardcoded overrides for edge cases. |
 | `repair_1996_truncated.py` | 189 | 1996 | Parses CIA's original `wfb-96.txt.gz` (page-header format with centered country/section names) and replaces truncated Gutenberg entries for 7 countries: Venezuela, Armenia, Greece, Luxembourg, Malta, Monaco, Tuvalu. |
 | `validate_integrity.py` | 296 | All | Read-only validation suite with 10 checks: field count benchmarks, US population/GDP ground truth, year-over-year consistency, source provenance, NULL detection, and unmapped field name gap analysis. |
-| `structured_parsing/parse_field_values.py` | 1,400+ | All | Decomposes 1,071,603 raw text blobs into 1,611,094 typed sub-values using 55 field-specific parsers + generic fallback. Each row includes a `SourceFragment` column showing the exact text slice that produced the value, and an `IsComputed` flag distinguishing source-extracted values (0) from parser-derived values (1). Extracts land/water area, male/female life expectancy, age brackets, sex ratios, literacy, budget, elevation, dependency ratios, GDP composition, CO2 emissions, water/sanitation, and more. |
+| `structured_parsing/parse_field_values.py` | 1,400+ | All | Decomposes 1,071,603 raw text blobs into 1,775,588 typed sub-values using 55 field-specific parsers + generic fallback. Each row includes a `SourceFragment` column showing the exact text slice that produced the value, and an `IsComputed` flag distinguishing source-extracted values (0) from parser-derived values (1). Extracts land/water area, male/female life expectancy, age brackets, sex ratios, literacy, budget, elevation, dependency ratios, GDP composition, CO2 emissions, water/sanitation, and more. |
 | `structured_parsing/validate_field_values.py` | 231 | All | Validates FieldValues against the source database: row counts, coverage, numeric extraction rate, spot checks against known ground truth values (US population, Russia area, Japan military). |
-| `structured_parsing/export_field_values_to_sqlite.py` | 269 | All | Exports FieldValues + all reference tables to a self-contained SQLite database (factbook.db, ~638 MB with FTS5 + ISOCountryCodes when using `--webapp`). Includes post-export integrity check that detects and backfills any unmapped field names. |
+| `structured_parsing/export_field_values_to_sqlite.py` | 269 | All | Exports FieldValues + all reference tables to a self-contained SQLite database (factbook.db, ~656 MB with FTS5 + ISOCountryCodes when using `--webapp`). Includes post-export integrity check that detects and backfills any unmapped field names. |
 
 ### Why parsing was so difficult
 
@@ -214,9 +214,9 @@ See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) and [docs/ETL_PIPELINE.md](docs/E
 
 ### Structured Field Values Database (NEW)
 
-The raw text in `CountryFields.Content` has been decomposed into **1,611,094 typed sub-values** across **2,379 distinct sub-fields** using 55 dedicated parsers. Each row includes a `SourceFragment` showing the exact text slice that produced the value, and an `IsComputed` flag distinguishing values extracted directly from source text (`0`) from values derived by computation (`1`, e.g. averaging male/female life expectancy for pre-1995 data). Sub-field boundaries in Content use pipe (`|`) delimiters for unambiguous parsing. This enables SQL queries that were previously impossible without per-query regex — for example, ranking countries by land-vs-water ratio, comparing male vs female life expectancy, or charting budget deficit trends.
+The raw text in `CountryFields.Content` has been decomposed into **1,775,588 typed sub-values** across **2,599 distinct sub-fields** using 55 dedicated parsers. Each row includes a `SourceFragment` showing the exact text slice that produced the value, and an `IsComputed` flag distinguishing values extracted directly from source text (`0`) from values derived by computation (`1`, e.g. averaging male/female life expectancy for pre-1995 data). Sub-field boundaries in Content use pipe (`|`) delimiters for unambiguous parsing. This enables SQL queries that were previously impossible without per-query regex — for example, ranking countries by land-vs-water ratio, comparing male vs female life expectancy, or charting budget deficit trends.
 
-**Download:** [factbook.db (~638 MB) from Release v3.3](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/tag/v3.3) — single self-contained database with all tables, FTS5 search index, and ISO country codes.
+**Download:** [factbook.db (~656 MB) from Release v3.4](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/tag/v3.4) — single self-contained database with all tables, FTS5 search index, and ISO country codes.
 
 **Live dashboard:** [worldfactbookarchive.org/analysis/structured-data](https://worldfactbookarchive.org/analysis/structured-data) — interactive charts showing new queries with SQL and source data tabs.
 
@@ -262,7 +262,7 @@ See [etl/stardict/README.md](etl/stardict/README.md) for format details, synonym
 
 ### Alternative: SQLite (No SQL Server Required)
 
-A pre-built SQLite database (`factbook.db`, ~638 MB) is available as a release download for users who don't need SQL Server. The file exceeds GitHub's 100 MB file-size limit, so it is not included in the repository itself.
+A pre-built SQLite database (`factbook.db`, ~656 MB) is available as a release download for users who don't need SQL Server. The file exceeds GitHub's 100 MB file-size limit, so it is not included in the repository itself.
 
 **Download:** [factbook.db from the latest release](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/latest)
 
@@ -271,7 +271,7 @@ Place the downloaded file at `data/factbook.db` in the project root. SQLite requ
 | | SQL Server | SQLite |
 |--|-----------|--------|
 | **Setup** | Install SQL Server + ODBC driver, run schema + import scripts | Download one `.db` file |
-| **Size** | ~263 MB across 36 gzipped SQL files | ~638 MB single file |
+| **Size** | ~263 MB across 36 gzipped SQL files | ~656 MB single file |
 | **Query tool** | SSMS, sqlcmd, pyodbc | Python `sqlite3`, DB Browser, any SQLite client |
 | **Best for** | Power BI, enterprise analytics, large-scale joins | Quick exploration, scripting, lightweight apps |
 | **Schema** | Identical 5-table structure | Identical 5-table structure |
@@ -346,7 +346,7 @@ The archive is served as a FastAPI + Jinja2 web application at **[worldfactbooka
   - **Political Stability** — government type choropleth, regime change tracking, and regional peer comparison
   - **Natural Resources & Economy** — resource production maps, commodity scatter plots, and country profiles
   - **Dissolved States** — historical entities no longer in the Factbook with archived indicator data
-  - **Structured Field Data** — interactive dashboard of 1,611,094 parsed sub-values with Chart/SQL/Source tabs showing exactly where each number was extracted from
+  - **Structured Field Data** — interactive dashboard of 1,775,588 parsed sub-values with Chart/SQL/Source tabs showing exactly where each number was extracted from
 - **Intelligence dossiers** following ICD 203 analytic standards
 - **Regional threat briefs** with instability and security indicators
 - **Factbook Quiz** — 4 modes: country identification, capital cities, higher-or-lower, and flag recognition

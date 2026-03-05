@@ -1,7 +1,7 @@
 CIA WORLD FACTBOOK ARCHIVE
 ==========================
 36 years of data (1990-2025) — 281 entities, 1,071,603 fields
-1,611,094 structured sub-values parsed from raw text (2,379 sub-fields)
+1,775,588 structured sub-values parsed from raw text (2,599 sub-fields)
 Live: https://worldfactbookarchive.org
 
 DATABASE SCHEMA:
@@ -30,7 +30,7 @@ KEY QUERY — Snapshot of all factbook content with country metadata:
 
 DATABASES:
   SQL Server:  CIA_WorldFactbook on localhost (Windows Auth, ODBC Driver 18)
-  SQLite:      data/factbook.db (~638 MB, all tables + FTS5 + ISOCountryCodes)
+  SQLite:      data/factbook.db (~656 MB, all tables + FTS5 + ISOCountryCodes)
 
   factbook.db is a self-contained database used by the webapp and for distribution.
   SQL Server is the canonical source for ETL.

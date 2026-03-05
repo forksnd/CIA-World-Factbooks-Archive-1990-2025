@@ -13,7 +13,7 @@ Run these queries against either database to confirm the expected totals:
 | CountryCategories | 83,682 |
 | CountryFields | 1,071,603 |
 | FieldNameMappings | 1,132 |
-| FieldValues | 1,611,094 |
+| FieldValues | 1,775,588 |
 
 ### SQLite
 

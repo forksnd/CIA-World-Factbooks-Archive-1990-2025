@@ -78,6 +78,8 @@ def normalize_content(content):
         return ""
     # Remove 'country comparison to the world: N' before splitting
     content = re.sub(r'\s*\|?\s*country comparison to the world:\s*\d+', '', content)
+    # Fix pipe-after-colon pattern from 2009-2014 HTML parser (label: | value → label: value)
+    content = re.sub(r':\s*\|\s*', ': ', content)
     return content.strip()
 
 
