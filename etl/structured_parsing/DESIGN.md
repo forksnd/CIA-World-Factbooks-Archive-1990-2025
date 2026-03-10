@@ -58,7 +58,7 @@ so consumers can distinguish extracted values from derived ones.
 CountryFields
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ FieldName: "Area"                                                       │
-│ Content:   "total: 7,741,220 sq km land: 7,682,300 sq km               │
+│ Content:   "total: 7,741,220 sq km land: 7,682,300 sq km                │
 │             water: 58,920 sq km note: includes Lord Howe Island"        │
 └─────────────────────────────────────────────────────────────────────────┘
 
