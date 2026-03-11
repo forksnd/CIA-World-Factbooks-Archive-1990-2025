@@ -1068,7 +1068,7 @@ function renderCountries(filter, type) {
     var badgeClass = getBadgeClass(e.type);
     var typeLabel = e.type.replace(/_/g, ' ');
     var nameCell = e.link_code
-      ? '<a href="https://worldfactbookarchive.org/country/' + e.link_code + '/' + e.last + '" target="_blank">' + e.name + '</a>'
+      ? '<a href="https://worldfactbookarchive.org/archive/' + e.last + '/' + e.link_code + '" target="_blank">' + e.name + '</a>'
       : e.name;
     return '<tr>' +
       '<td>' + nameCell + '</td>' +
