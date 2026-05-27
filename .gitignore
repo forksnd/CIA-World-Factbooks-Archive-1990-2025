@@ -10,6 +10,8 @@ Thumbs.db
 work/
 text_samples/
 html_samples/
+raw-sources/
+raw-sources-staging/
 *.zip
 .claude/
 tmp_comms.html
