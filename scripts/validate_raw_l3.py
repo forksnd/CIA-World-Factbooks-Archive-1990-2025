@@ -8,7 +8,7 @@ This validates that the raw files in raw-sources/ are exactly the inputs that
 produced CountryFields in factbook.db (which is the SQLite canonical truth
 declared in L0).
 
-Outputs L3_REBUILD_REPORT.md.
+Outputs raw-sources/L3_REPORT.md.
 """
 import importlib.util
 import os
@@ -26,7 +26,7 @@ DB = REPO / "data" / "factbook.db"
 WORK = REPO / "work"
 TEXT = REPO / "samples" / "text_samples"
 JSON_REPO = Path(os.environ.get("FACTBOOK_JSON_REPO", str(WORK / "factbook-json-cache")))
-REPORT = REPO / "docs" / "L3_REBUILD_REPORT.md"
+REPORT = REPO / "raw-sources" / "L3_REPORT.md"
 
 JSON_COMMITS = {
     2021: "01df1072", 2022: "756fb110", 2023: "e87ac6fc",

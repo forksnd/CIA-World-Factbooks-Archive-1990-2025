@@ -165,7 +165,7 @@ the `factbook/cache.factbook.json` repo, then hash the resulting zips. The
 same zips will be reused for the Release upload (no rebuilding).
 
 **Result: 38 files, 2.98 GB total, all hashed and recorded in
-`docs/RAW_SOURCES_MANIFEST.json`.**
+`MANIFEST.json`.**
 
 ### Composition
 
@@ -220,7 +220,7 @@ No temp DB, no SQL writes. Pure in-memory re-parse.
 
 **Result: 1,070,747 / 1,071,489 records matched exactly = 99.94% match rate.**
 
-Full report at `docs/L3_REBUILD_REPORT.md`.
+Full report at `L3_REPORT.md`.
 
 ### Mismatch categorization (742 records, 0.07%)
 
@@ -279,7 +279,7 @@ against the second database.
 
 **Result: 1,063,060 / 1,071,601 records matched = 99.20% match rate.**
 
-Full report at `docs/L3B_REBUILD_REPORT.md`.
+Full report at `L3B_REPORT.md`.
 
 ### Key finding: SQL Server has text-year data drift
 
