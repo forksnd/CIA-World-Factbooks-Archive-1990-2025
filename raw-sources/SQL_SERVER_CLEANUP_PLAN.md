@@ -1,8 +1,85 @@
 # SQL Server Cleanup Plan
 
 Generated: 2026-05-27
-Status: INVESTIGATION ONLY — no destructive changes have been executed.
+**Status: EXECUTED on 2026-05-28. SQL Server is now in sync with SQLite.**
 Author: handoff from L0-L3b validation pass.
+
+## Outcome (post-execution)
+
+Final row counts after cleanup:
+
+| Table | SQLite | SQL Server | Status |
+|---|---|---|---|
+| Countries | 9,535 | 9,535 | MATCH |
+| CountryFields | 1,071,489 | 1,071,489 | MATCH (was +112 stale) |
+| CountryCategories | 83,682 | 83,673 | -9 (orphaned from deleted Serbia rb categories; benign) |
+| MasterCountries | 284 | 284 | MATCH |
+| FieldNameMappings | 1,132 | 1,132 | MATCH |
+
+All 36 years of CountryFields match exactly between the two DBs. Madagascar
+Territorial sea now reads `12 nm` in both (was `3 nm` in SQL Server).
+Somalia Birth rate now reads `47 births/1,000` in both (was `18` in SQL
+Server). The Serbia 2008 duplicate is gone.
+
+## Root cause uncovered during execution
+
+The sync script `etl/sync_sqlite_to_sqlserver.py` was originally keyed by
+`(Year, Code, CategoryTitle, FieldName)`. Within 1990-2001 Gutenberg data,
+seven Code values collide because the parser's `make_code()` produces
+2-letter codes by truncating country names:
+
+| Code | Colliding countries |
+|---|---|
+| `'st'` (×5) | St. Helena, St. Kitts and Nevis, St. Lucia, St. Pierre and Miquelon, St. Vincent and the Grenadines |
+| `'so'` (×2) | **Somalia, Soviet Union** |
+| `'ma'` (×2) | Madagascar, Man, Isle of |
+| `'ca'` (×2) | Canada, Cape Verde |
+| `'pa'` (×2) | Pacific Islands, Paraguay |
+| `'ym'` (×2) | Yemen Arab Republic, Yemen, People's Democratic Republic of |
+| `'iz'` (×2) | Iraq, Iraq-Saudi Arabia Neutral Zone |
+
+When the sync built a `(Code, Cat, Field) -> Content` lookup dict from
+SQLite, the second country with a colliding code silently overwrote the
+first. Then when comparing against SQL Server rows, the dict's last-wins
+value would match SQL Server's stored value (which was itself the result
+of an earlier sync run hitting the same bug), so the sync would report
+0 updates needed — even though Madagascar had Isle of Man's value and
+Somalia had Soviet Union's value.
+
+**Fix:** changed the key from `(Code, Cat, Field)` to
+`(Name, Cat, Field)`. Country Names are unique within a year. Same fix
+applied to `sync_master_countries` which keyed by `(Year, Code)`.
+
+The fixed script lives in `etl/sync_sqlite_to_sqlserver.py`. After the fix,
+the dry-run correctly identified 2,621 CountryFields updates and 33
+MasterCountryID updates concentrated in 1990-2001.
+
+## Execution log (2026-05-28)
+
+| Step | Result |
+|---|---|
+| 0. Backup CIA_WorldFactbook to MSSQL Backup dir | 442 MB raw / 133 MB compressed; `RESTORE VERIFYONLY` passed |
+| 1. Fix sync script (Code -> Name in both functions) | Committed |
+| 2. Dry-run | 2,621 CountryFields updates + 33 MasterCountryID updates predicted |
+| 3. Apply CountryFields sync | 2,621 rows updated across 1990-2017; Madagascar / Somalia / etc. verified |
+| 4. Drop `UQ_MasterCountries_CanonicalCode` (SQLite has no such constraint and intentionally lets dissolved entities share codes, e.g. Slovakia + Czechoslovakia both = `'LO'`) | Constraint dropped |
+| 5. INSERT 3 missing MasterCountries (Soviet Union UR, Czechoslovakia LO, Yugoslavia YU; EntityType `'dissolved'`) | Total now 284 |
+| 6. DELETE Serbia 2008 stale `'rb'` row + 114 CountryFields + 9 CountryCategories children | Countries Year=2008 went from 263 to 262 |
+| 7. UPDATE 3 FieldNameMappings rows (CanonicalName `'Military expenditures - percent of GDP'` -> `'Military expenditures'`) | 3 rows updated |
+| 8. Re-run sync for MasterCountryID linking | 33 MasterCountryID updates applied (was previously failing on FK to missing MasterCountries) |
+| 9. Insert 2 missing Serbia 2008 CountryFields (`Economic aid - recipient`, `Population below poverty line`) that were orphaned to the deleted `'rb'` row | Serbia 2008 row count now 119 in both DBs |
+| 10. Re-validate via L3b | Matched rows: 1,063,060 -> 1,065,234; per-year row counts: all 36 years match exactly |
+
+Total elapsed: ~30 minutes including investigation and verification.
+Backup remains in place at the SQL Server default backup directory.
+
+## What we are NOT doing (deferred)
+
+- **Not migrating `FieldValues` to SQL Server.** No consumer. Webapp reads
+  SQLite. Same reasoning as the original plan section 3.
+- **Not migrating `ISOCountryCodes` to SQL Server.** No consumer.
+- **Not shrinking the SQL Server data file.** Optional disk reclamation;
+  can be done off-hours with `DBCC SHRINKFILE` if desired.
 
 ## 1. Diagnosis
 
