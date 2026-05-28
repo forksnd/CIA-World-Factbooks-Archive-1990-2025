@@ -1,16 +1,53 @@
 # CIA World Factbook — Raw Sources (1990-2025)
 
-This bundle contains the **original, unprocessed source files** that were fed
-into the ETL pipeline of the
-[CIA World Factbook Archive 1990-2025](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025)
-project to produce `factbook.db`.
+The original input files that produced `factbook.db` — every CIA World
+Factbook edition from 1990 to 2025, as the bytes the parsers consumed.
 
-If you want the *processed* SQLite database with parsed fields and the FTS5
-search index, grab the v3.x release. This bundle is for people who want the
-raw inputs — for offline verification of database values against their
-originals, or for full-text search of the source bytes themselves.
+---
 
-## What's inside
+## Download the data
+
+> **All 38 raw source files (2.98 GB) are in the [`raw-sources-v1` GitHub Release](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/tag/raw-sources-v1).**
+>
+> Click → scroll to Assets → download what you want. Each year is its own
+> file (5 MB to 367 MB per year). You don't need the whole 3 GB.
+
+The Release contains:
+
+- **21 HTML zips** for 2000-2020 (CIA Wayback Machine captures)
+- **12 plaintext files** for 1990-1999, 2001 (Project Gutenberg) + the 1996 CIA original (Wayback ODCI)
+- **5 JSON snapshot zips** for 2021-2025 (factbook-json-cache mirror, year-end commits)
+
+**Why isn't the data in this folder?** GitHub's per-file git limit is 100 MB,
+and 10 of our HTML zips exceed it (`factbook-2020.zip` alone is 367 MB).
+GitHub Releases are designed for exactly this case: free unmetered downloads,
+2 GB per file, no repo bloat.
+
+---
+
+## Read the validation alongside the data
+
+Before you trust the raw bytes, see how we proved they produced `factbook.db`:
+
+| File | What it answers |
+|---|---|
+| **[`VALIDATION.md`](VALIDATION.md)** | Full methodology, all four validation levels (L0 - L3b). Headline: **99.94% exact row-level match** against `factbook.db.CountryFields` (1,070,747 of 1,071,489 records). |
+| **[`L3_REPORT.md`](L3_REPORT.md)** | Per-year diff: re-parse the raw files in memory and compare every record to SQLite. |
+| **[`L3B_REPORT.md`](L3B_REPORT.md)** | Same diff against the legacy SQL Server mirror. Surfaced real data drift in SQL Server (not in the raw files or SQLite). |
+| **[`MANIFEST.json`](MANIFEST.json)** | SHA256 hash + upstream URL (Wayback timestamp, Gutenberg ebook ID, or upstream commit hash) for every file. |
+| **[`INDEX.xlsx`](INDEX.xlsx)** | Browsable spreadsheet view of the same — open in Excel/LibreOffice. |
+| [`SQL_SERVER_CLEANUP_PLAN.md`](SQL_SERVER_CLEANUP_PLAN.md) | Separate operational plan for the SQL Server drift the validation surfaced. Not required reading for raw-sources users. |
+
+The Release bundle includes copies of `README.md`, `MANIFEST.json`, and
+`INDEX.xlsx` so they ship alongside the data; the validation reports stay
+in this folder where they can be browsed without downloading 3 GB.
+
+---
+
+## What you get from the Release (after download)
+
+When you download from the Release, you get 38 binary assets + 3 metadata
+files. They organize into this structure once extracted:
 
 ```
 raw-sources/
@@ -25,7 +62,7 @@ raw-sources/
   README.md                          this file
 ```
 
-Total: 38 files, 2.98 GB.
+Total: 38 binary files, 2.98 GB.
 
 ## Sources by era
 
