@@ -5,7 +5,7 @@ For JSON 2021-2025, build year snapshot zips via `git archive` into a staging
 directory, then hash the resulting zips. The same zips will be reused for the
 Release upload.
 
-Writes results to docs/RAW_SOURCES_MANIFEST.json (working manifest).
+Writes results to raw-sources/MANIFEST.json.
 """
 import hashlib
 import json
@@ -20,7 +20,7 @@ WORK = REPO / "work"
 TEXT = REPO / "samples" / "text_samples"
 JSON_REPO = Path(_os.environ.get("FACTBOOK_JSON_REPO", str(WORK / "factbook-json-cache")))
 STAGE = REPO / "raw-sources-staging"  # gitignored; intentional separate path
-MANIFEST = REPO / "docs" / "RAW_SOURCES_MANIFEST.json"
+MANIFEST = REPO / "raw-sources" / "MANIFEST.json"
 
 JSON_COMMITS = {
     2021: "01df1072",

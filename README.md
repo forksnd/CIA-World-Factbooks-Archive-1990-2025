@@ -4,7 +4,7 @@ A complete, structured archive of the CIA World Factbook spanning **36 years** (
 
 The CIA World Factbook was discontinued on **February 4, 2026**. This archive preserves every edition published since 1990 and creates a structured, queryable dataset.
 
-**[Search the interactive archive](https://worldfactbookarchive.org/)** | **[Project documentation](https://milkmp.github.io/CIA-World-Factbooks-Archive-1990-2025/)** | **[Executive Summary](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/blob/main/docs/CIA_Factbook_Archive_Executive_Summary.pdf/)**
+**[Search the interactive archive](https://worldfactbookarchive.org/)** | **[Project documentation](https://milkmp.github.io/CIA-World-Factbooks-Archive-1990-2025/)** | **[Executive Summary](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/blob/main/docs/CIA_Factbook_Archive_Executive_Summary.pdf/)** | **[Raw Source Files](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/tag/raw-sources-v1)**
 
 > **Data Integrity:** No Factbook content is added or altered. The parsing process structures the CIA's raw text into queryable fields — removing formatting artifacts, sectioning headers, and deduplicating noise lines — but the actual data values are exactly as the CIA published them. The only additions to the source data are reference lookup tables (FIPS-to-ISO code mappings, entity classifications, COCOM regional assignments) that sit alongside the original data, not inside it. In FieldValues, a small number of rows are derived by computation from neighboring sub-values (e.g. total life expectancy averaged from male/female in pre-1995 data); these are clearly flagged with `IsComputed = 1`.
 
@@ -33,6 +33,14 @@ The CIA World Factbook was discontinued on **February 4, 2026**. This archive pr
 | 2001 | Project Gutenberg | Text fallback (HTML zip was corrupted) |
 | 2002-2020 | Wayback Machine | HTML zip archives from cia.gov, 4 parser generations |
 | 2021-2025 | [factbook/cache.factbook.json](https://github.com/factbook/cache.factbook.json) | Git history with year-end commit snapshots |
+
+## Raw Source Bundle
+
+The original input files behind every year — Gutenberg `.txt`, CIA HTML zips, JSON snapshots — are also published as a separate GitHub Release for offline verification, full-text search of raw bytes, or re-running the ETL from scratch.
+
+**[Download: raw-sources-v1](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/tag/raw-sources-v1)** — 38 files, 2.98 GB, every year is its own asset.
+
+The bundle has been row-level-diffed against `factbook.db` at **99.94% exact match**. Methodology, per-year results, and the full manifest live in [`raw-sources/`](raw-sources/) (validation report, L3 / L3b reports, SHA256 + upstream URL per file).
 
 ## Year-by-Year Breakdown
 

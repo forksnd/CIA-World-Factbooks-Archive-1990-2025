@@ -20,7 +20,7 @@ REPO = Path(__file__).resolve().parent.parent
 WORK = REPO / "work"
 TEXT = REPO / "samples" / "text_samples"
 JSON_REPO = Path(os.environ.get("FACTBOOK_JSON_REPO", str(WORK / "factbook-json-cache")))
-REPORT = REPO / "docs" / "L3B_REBUILD_REPORT.md"
+REPORT = REPO / "raw-sources" / "L3B_REPORT.md"
 
 CONN_STR = (
     "DRIVER={ODBC Driver 17 for SQL Server};"

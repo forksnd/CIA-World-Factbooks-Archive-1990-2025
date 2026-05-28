@@ -56,7 +56,7 @@ the raw source files and the canonical SQLite. Spot-check against
 | Somalia / Birth rate (1990) | `18 births/1,000 population` | `47 births/1,000 population` |
 
 Pattern: looks like cross-country field leakage from a pre-2026 buggy
-parse. Full evidence in `docs/L3B_REBUILD_REPORT.md`.
+parse. Full evidence in `L3B_REPORT.md`.
 
 UPDATE volume by year (computed by replaying the
 `sync_sqlite_to_sqlserver.py` matching logic against SQL Server):

@@ -96,7 +96,7 @@ def build_xlsx(manifest):
         ["  Get-FileHash html\\factbook-2010.zip -Algorithm SHA256"],
         [""],
         ["Provenance: 99.94% of records in factbook.db CountryFields trace back"],
-        ["to these raw files via a row-level diff. See docs/RAW_SOURCES_VALIDATION.md"],
+        ["to these raw files via a row-level diff. See raw-sources/VALIDATION.md"],
         ["in the main repo for the full validation methodology."],
     ]
     for row_idx, r in enumerate(notes, 1):
