@@ -25,24 +25,44 @@ CONN_STR = (
 )
 
 
+def _normkey(s):
+    """Normalize a country/category/field name for cross-DB matching.
+    Lowercase + collapse internal whitespace. Country Code is NOT used as a
+    key because Gutenberg-era codes have collisions (e.g. 'ma' = both
+    Madagascar and 'Man, Isle of'; 'ca' = both Canada and Cape Verde).
+    Names are unique within a year and are stable across both DBs."""
+    if s is None:
+        return ""
+    return " ".join(str(s).split()).lower()
+
+
 def sync_country_fields(sc, mc, sql_conn, years, dry_run=False):
-    """Sync CountryFields.Content from SQLite to SQL Server."""
+    """Sync CountryFields.Content from SQLite to SQL Server.
+    Match by (Name, CategoryTitle, FieldName) — NOT by Code, because the
+    1990-1995 Gutenberg parser's make_code() generates colliding 2-letter
+    codes for ~16 country pairs (Madagascar/Isle of Man, Canada/Cape Verde,
+    Somalia/Soviet Union, etc.). Matching by Code silently cross-pollinates
+    these countries' content. See raw-sources/SQL_SERVER_CLEANUP_PLAN.md.
+    """
     total_updated = 0
 
     for year in years:
-        # Build SQLite lookup: (Code, CategoryTitle, FieldName) -> Content
+        # Build SQLite lookup: (NameKey, CategoryTitle, FieldName) -> Content
         sc.execute("""
-            SELECT co.Code, cc.CategoryTitle, cf.FieldName, cf.Content
+            SELECT co.Name, cc.CategoryTitle, cf.FieldName, cf.Content
             FROM CountryFields cf
             JOIN Countries co ON cf.CountryID = co.CountryID
             JOIN CountryCategories cc ON cf.CategoryID = cc.CategoryID
             WHERE co.Year = ?
         """, (year,))
-        sqlite_lookup = {(code, cat, fn): content for code, cat, fn, content in sc.fetchall()}
+        sqlite_lookup = {
+            (_normkey(name), _normkey(cat), _normkey(fn)): content
+            for name, cat, fn, content in sc.fetchall()
+        }
 
         # Get SQL Server fields for this year
         mc.execute("""
-            SELECT cf.FieldID, co.Code, cc.CategoryTitle, cf.FieldName, cf.Content
+            SELECT cf.FieldID, co.Name, cc.CategoryTitle, cf.FieldName, cf.Content
             FROM CountryFields cf
             JOIN Countries co ON cf.CountryID = co.CountryID
             JOIN CountryCategories cc ON cf.CategoryID = cc.CategoryID
@@ -50,8 +70,8 @@ def sync_country_fields(sc, mc, sql_conn, years, dry_run=False):
         """, year)
 
         year_updated = 0
-        for fid, code, cat, fname, old_content in mc.fetchall():
-            key = (code, cat, fname)
+        for fid, name, cat, fname, old_content in mc.fetchall():
+            key = (_normkey(name), _normkey(cat), _normkey(fname))
             if key in sqlite_lookup:
                 new_content = sqlite_lookup[key]
                 if new_content and new_content != old_content:
@@ -71,20 +91,22 @@ def sync_country_fields(sc, mc, sql_conn, years, dry_run=False):
 
 
 def sync_master_countries(sc, mc, sql_conn, dry_run=False):
-    """Sync MasterCountryID links from SQLite to SQL Server."""
+    """Sync MasterCountryID links from SQLite to SQL Server.
+    Match by (Year, Name) — see sync_country_fields docstring for why
+    Code is not used."""
     sc.execute("""
-        SELECT co.Year, co.Code, co.MasterCountryID
+        SELECT co.Year, co.Name, co.MasterCountryID
         FROM Countries co
         WHERE co.MasterCountryID IS NOT NULL
     """)
     sqlite_links = {}
-    for year, code, mid in sc.fetchall():
-        sqlite_links[(year, code)] = mid
+    for year, name, mid in sc.fetchall():
+        sqlite_links[(year, _normkey(name))] = mid
 
-    mc.execute("SELECT CountryID, Year, Code, MasterCountryID FROM Countries")
+    mc.execute("SELECT CountryID, Year, Name, MasterCountryID FROM Countries")
     updated = 0
-    for cid, year, code, old_mid in mc.fetchall():
-        key = (year, code)
+    for cid, year, name, old_mid in mc.fetchall():
+        key = (year, _normkey(name))
         if key in sqlite_links:
             new_mid = sqlite_links[key]
             if new_mid != old_mid:
