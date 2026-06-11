@@ -6,6 +6,14 @@ The CIA World Factbook was discontinued on **February 4, 2026**. This archive pr
 
 **[Search the interactive archive](https://worldfactbookarchive.org/)** | **[Project documentation](https://milkmp.github.io/CIA-World-Factbooks-Archive-1990-2025/)** | **[Executive Summary](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/blob/main/docs/CIA_Factbook_Archive_Executive_Summary.pdf/)** | **[Raw Source Files](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/tag/raw-sources-v1)**
 
+## Get the app
+
+The full archive is also a **free, fully-offline phone app** — the entire
+36-year dataset is bundled inside, so it runs with no account and no network.
+
+- **Android:** [**Download for Android**](https://worldfactbookarchive.org/android) — direct install.
+- **iPhone / iPad:** *Coming soon* — in review on the App Store.
+
 > **Data Integrity:** No Factbook content is added or altered. The parsing process structures the CIA's raw text into queryable fields — removing formatting artifacts, sectioning headers, and deduplicating noise lines — but the actual data values are exactly as the CIA published them. The only additions to the source data are reference lookup tables (FIPS-to-ISO code mappings, entity classifications, COCOM regional assignments) that sit alongside the original data, not inside it. In FieldValues, a small number of rows are derived by computation from neighboring sub-values (e.g. total life expectancy averaged from male/female in pre-1995 data); these are clearly flagged with `IsComputed = 1`.
 
 
