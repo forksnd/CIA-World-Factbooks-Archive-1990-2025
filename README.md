@@ -8,9 +8,10 @@ The CIA World Factbook was discontinued on **February 4, 2026**. This archive pr
 
 ## Get the app
 
-The full archive is also a **free, fully-offline phone app** — the entire
+The full archive is also a **free, fully-offline app** — the entire
 36-year dataset is bundled inside, so it runs with no account and no network.
 
+- **Windows 10/11 (64-bit):** [**Download for Windows**](https://github.com/MilkMp/CIA-World-Factbooks-Archive-1990-2025/releases/download/windows-v1.0.0/WorldFactbookArchive-Windows-x64.zip) — portable zip; unzip and run `factbook.exe`. Not yet code-signed, so Windows may show a SmartScreen prompt the first time (More info -> Run anyway).
 - **Android:** [**Download for Android**](https://worldfactbookarchive.org/android) — direct install.
 - **iPhone / iPad:** *Coming soon* — in review on the App Store.
 
