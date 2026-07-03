@@ -1,4 +1,4 @@
--- CountryCategories: 83,599 rows
+-- CountryCategories: 83,628 rows
 -- Exported from CIA_WorldFactbook archive
 
 SET IDENTITY_INSERT CountryCategories ON;
@@ -83937,6 +83937,39 @@ VALUES
   (375553, 22259, N'Economy'),
   (375554, 22259, N'Communications'),
   (375555, 22259, N'Defense Forces');
+GO
+
+INSERT INTO CountryCategories (CategoryID, CountryID, CategoryTitle)
+VALUES
+  (375556, 20671, N'Introduction'),
+  (375557, 20677, N'Introduction'),
+  (375558, 20683, N'Introduction'),
+  (375559, 20697, N'Introduction'),
+  (375560, 20707, N'Introduction'),
+  (375561, 20755, N'Introduction'),
+  (375562, 20784, N'Introduction'),
+  (375563, 20804, N'Introduction'),
+  (375564, 20806, N'Introduction'),
+  (375565, 20868, N'Introduction'),
+  (375566, 20878, N'Introduction'),
+  (375567, 20898, N'Introduction'),
+  (375568, 20924, N'Introduction'),
+  (375569, 14320, N'Introduction'),
+  (375570, 14326, N'Introduction'),
+  (375571, 14332, N'Introduction'),
+  (375572, 14346, N'Introduction'),
+  (375573, 14356, N'Introduction'),
+  (375574, 14362, N'Introduction'),
+  (375575, 14403, N'Introduction'),
+  (375576, 14404, N'Introduction'),
+  (375577, 14423, N'Introduction'),
+  (375578, 14433, N'Introduction'),
+  (375579, 14453, N'Introduction'),
+  (375580, 14455, N'Introduction'),
+  (375581, 14528, N'Introduction'),
+  (375582, 14530, N'Introduction'),
+  (375583, 14549, N'Introduction'),
+  (375584, 14575, N'Introduction');
 GO
 
 SET IDENTITY_INSERT CountryCategories OFF;
